@@ -1,0 +1,29 @@
+@startuml
+skinparam componentStyle rectangle
+
+actor Client
+
+component "TradingGateway.Api\nASP.NET Core Web API" as Gateway
+component "PricingService.Grpc\ngRPC Service" as Pricing
+component "RiskService.Grpc\ngRPC Service" as Risk
+queue "RabbitMQ / NServiceBus" as Bus
+component "TradeCapture.Service\n.NET Worker" as TradeCapture
+component "Position.Service\n.NET Worker" as Position
+
+database "Order DB" as OrderDb
+database "Trade DB" as TradeDb
+database "Position DB" as PositionDb
+
+Client --> Gateway : POST /api/orders
+Gateway --> Pricing : GetPrice()
+Gateway --> Risk : CheckOrderRisk()
+Gateway --> OrderDb : Save order
+Gateway --> Bus : Publish OrderAccepted
+Bus --> TradeCapture : OrderAccepted
+TradeCapture --> TradeDb : Save trade
+TradeCapture --> Bus : Publish TradeCaptured
+Bus --> Position : TradeCaptured
+Position --> PositionDb : Update position
+Position --> Bus : Publish PositionUpdated
+
+@enduml

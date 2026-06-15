@@ -1,0 +1,26 @@
+@startuml
+actor Client
+participant "TradingGateway.Api" as Gateway
+participant "PricingService.Grpc" as Pricing
+participant "RiskService.Grpc" as Risk
+queue "NServiceBus" as Bus
+participant "TradeCapture.Service" as TradeCapture
+participant "Position.Service" as Position
+
+Client -> Gateway : SubmitOrder
+Gateway -> Pricing : GetPrice(symbol, side, quantity)
+Pricing --> Gateway : price
+Gateway -> Risk : CheckOrderRisk(order, price, notional)
+Risk --> Gateway : approved / rejected
+
+alt risk approved
+    Gateway -> Bus : Publish OrderAccepted
+    Gateway --> Client : 202 Accepted / order accepted
+    Bus -> TradeCapture : OrderAccepted
+    TradeCapture -> Bus : Publish TradeCaptured
+    Bus -> Position : TradeCaptured
+    Position -> Bus : Publish PositionUpdated
+else risk rejected
+    Gateway --> Client : 400 Bad Request / rejected
+end
+@enduml

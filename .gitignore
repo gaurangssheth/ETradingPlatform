@@ -1,0 +1,26 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.slnLaunch.user
+
+# Build output
+bin/
+obj/
+
+# Logs
+logs/
+*.log
+
+# Local settings / secrets
+
+
+# Test output
+TestResults/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
