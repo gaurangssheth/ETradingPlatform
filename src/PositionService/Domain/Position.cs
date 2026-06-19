@@ -13,8 +13,14 @@ namespace PositionService.Domain
         public string Symbol { get; set; } = null!;
         public decimal NetQuantity { get; set; }
         public decimal AveragePrice { get; set; }
+        public decimal RealisedPnl { get; set; }
+
+        // Placeholder for Phase 2B.
+        // Later this will be calculated using market price from PricingService.Grpc.
+        public decimal UnrealisedPnl { get; set; }
         public string CorrelationId { get; set; } = null!;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
+        public ICollection<PositionMovement> Movements { get; set; } = new List<PositionMovement>();
     }
 }

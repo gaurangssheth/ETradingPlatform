@@ -24,6 +24,7 @@ namespace PositionService.Configuration
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IPositionRepository, PositionRepository>();
             services.AddScoped<IProcessedTradeRepository, ProcessedTradeRepository>();
+            services.AddScoped<IPositionMovementRepository, PositionMovementRepository>();
             services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
             return services;

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace PositionService.Infrastructure.Persistence.Configurations
 {
-    public class PositionConfirguration : IEntityTypeConfiguration<Position>
+    public class PositionConfiguration : IEntityTypeConfiguration<Position>
     {
         public void Configure(EntityTypeBuilder<Position> entity)
         {
@@ -20,7 +20,11 @@ namespace PositionService.Infrastructure.Persistence.Configurations
             entity.Property(e => e.Symbol).HasMaxLength(20).IsRequired();
             entity.Property(e => e.NetQuantity).HasPrecision(18,4).IsRequired();
             entity.Property(e => e.AveragePrice).HasPrecision(18, 8).IsRequired();
+            entity.Property(e => e.RealisedPnl).HasPrecision(18, 8).IsRequired();
+            entity.Property(e => e.UnrealisedPnl).HasPrecision(18, 8).IsRequired();
             entity.Property(e => e.CorrelationId).HasMaxLength(100).IsRequired();
+            entity.HasMany(e => e.Movements).WithOne(e => e.Position).HasForeignKey(e => e.PositionId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

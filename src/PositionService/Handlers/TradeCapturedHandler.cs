@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using PositionService.Application.PositionAccounting;
 using PositionService.Infrastructure.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -15,10 +16,14 @@ namespace PositionService.Handlers
     {
         private readonly ILogger<TradeCapturedHandler> logger;
         private readonly IUnitOfWork unitOfWork;
+        private readonly PositionCalculator positionCalculator;
 
-        public TradeCapturedHandler(IUnitOfWork unitOfWork, ILogger<TradeCapturedHandler> logger)
+        public TradeCapturedHandler(IUnitOfWork unitOfWork,
+            PositionCalculator positionCalculator,
+            ILogger<TradeCapturedHandler> logger)
         {
             this.unitOfWork = unitOfWork;
+            this.positionCalculator = positionCalculator;
             this.logger = logger;
         }
 
@@ -48,25 +53,59 @@ namespace PositionService.Handlers
                     Id = Guid.NewGuid(),
                     ClientId = message.ClientId,
                     Symbol = message.Symbol,
-                    NetQuantity = signedQuantity,
-                    AveragePrice = message.Price,
+
+                    // Important:
+                    // Create an empty position first.
+                    // The calculator will apply the trade.
+                    NetQuantity = 0m,
+                    AveragePrice = 0m,
+                    RealisedPnl = 0m,
+                    UnrealisedPnl = 0m,
+
                     CorrelationId = message.CorrelationId,
                     CreatedAt = DateTimeOffset.UtcNow,
                     UpdatedAt = DateTimeOffset.UtcNow
                 };
                 await unitOfWork.Positions.AddAsync(position, context.CancellationToken);
             }
-            else
+
+            var previousNetQuantity = position.NetQuantity;
+            var previousAveragePrice = position.AveragePrice;
+
+            var calculation = positionCalculator.ApplyTrade(
+                position.NetQuantity,
+                position.AveragePrice,
+                signedQuantity,
+                message.Price);
+
+            position.NetQuantity = calculation.NewNetQuantity;
+            position.AveragePrice = calculation.NewAveragePrice;
+            position.RealisedPnl += calculation.RealisedPnl;
+            position.UnrealisedPnl = 0m;
+            position.CorrelationId = message.CorrelationId;
+            position.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await unitOfWork.PositionMovements.AddAsync(new Domain.PositionMovement
             {
-                position.AveragePrice = CalculateNewAveragePrice(
-                    position.NetQuantity,
-                    position.AveragePrice, 
-                    signedQuantity,
-                    message.Price);
-                position.NetQuantity += signedQuantity;
-                position.CorrelationId = message.CorrelationId;
-                position.UpdatedAt = DateTimeOffset.UtcNow;
-            }
+                Id = Guid.NewGuid(),
+                PositionId = position.Id,
+                TradeId = message.TradeId,
+                ClientId = message.ClientId,
+                OrderId = message.OrderId,
+                Symbol = message.Symbol,
+                Quantity = message.Quantity,
+                SignedQuantity = signedQuantity,
+                Price = message.Price,
+                PreviousNetQuantity = previousNetQuantity,
+                PreviousAveragePrice = previousAveragePrice,
+                NewNetQuantity = position.NetQuantity,
+                NewNetAveragePrice = position.AveragePrice,
+                RealisedPnL = position.RealisedPnl,
+                CorreationId = message.CorrelationId,
+                Position = position,
+                CreatedAt = DateTimeOffset.UtcNow
+
+            }, context.CancellationToken);
 
             await unitOfWork.ProcessedTrades.AddAsync(new Domain.ProcessedTrade
             {
@@ -94,11 +133,13 @@ namespace PositionService.Handlers
             }
 
             logger.LogInformation(
-                "Position updated. PositionId={PositionId}, ClientId={ClientId}, Symbol={Symbol}, NetQuantity={NetQuantity}, CorrelationId={CorrelationId}",
+                "Position updated. PositionId={PositionId}, ClientId={ClientId}, Symbol={Symbol}, NetQuantity={NetQuantity}, AveragePrice={AveragePrice}, RealisedPnl={RealisedPnl}, CorrelationId={CorrelationId}",
                 position.Id,
                 position.ClientId,
                 position.Symbol,
                 position.NetQuantity,
+                position.AveragePrice,
+                position.RealisedPnl,
                 position.CorrelationId);
 
             await context.Publish(new PositionUpdated
@@ -108,6 +149,8 @@ namespace PositionService.Handlers
                 Symbol = position.Symbol,
                 NetQuantity = position.NetQuantity,
                 AveragePrice = position.AveragePrice,
+                RealisedPnl = position.RealisedPnl,
+                UnrealisedPnl = position.UnrealisedPnl,
                 CorrelationId = position.CorrelationId
             });
         }

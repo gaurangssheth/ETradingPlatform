@@ -18,6 +18,8 @@ namespace PositionService.Infrastructure.Persistence
 
         public DbSet<ProcessedTrade> ProcessedTrades => Set<ProcessedTrade>();
 
+        public DbSet<PositionMovement> PositionMovements => Set<PositionMovement>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PositionDbContext).Assembly);

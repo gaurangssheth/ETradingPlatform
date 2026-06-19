@@ -9,6 +9,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddPositionDatabase(context.Configuration);
+        services.AddPositionApplicationServices();
     })
     .UsePositionServiceSerilog()
     .UseNServiceBus(context =>

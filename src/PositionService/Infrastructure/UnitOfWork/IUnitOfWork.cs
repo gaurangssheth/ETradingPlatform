@@ -6,5 +6,7 @@ public interface IUnitOfWork
 {
     IPositionRepository Positions { get; }
     IProcessedTradeRepository ProcessedTrades { get; }
+    IPositionMovementRepository PositionMovements { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

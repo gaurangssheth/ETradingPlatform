@@ -18,6 +18,10 @@ namespace TradingApp.Contracts.Events
 
         public decimal AveragePrice { get; set; }
 
+        public decimal RealisedPnl { get; set; }
+
+        public decimal UnrealisedPnl { get; set; }
+
         public DateTimeOffset UpdatedAt { get; set; }
 
         public string CorrelationId { get; set; } = null!;

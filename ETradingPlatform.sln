@@ -17,6 +17,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PositionService", "src\Posi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradeCaptureService", "src\TradeCaptureService\TradeCaptureService.csproj", "{87AFCA70-522A-4ED8-420F-ED275FFFD881}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PositionService.Tests", "tests\PositionService.Tests\PositionService.Tests.csproj", "{BB76A7EA-C7AF-0578-43B7-21FAB88368FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,9 +55,16 @@ Global
 		{87AFCA70-522A-4ED8-420F-ED275FFFD881}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87AFCA70-522A-4ED8-420F-ED275FFFD881}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87AFCA70-522A-4ED8-420F-ED275FFFD881}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BB76A7EA-C7AF-0578-43B7-21FAB88368FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB76A7EA-C7AF-0578-43B7-21FAB88368FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB76A7EA-C7AF-0578-43B7-21FAB88368FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB76A7EA-C7AF-0578-43B7-21FAB88368FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{BB76A7EA-C7AF-0578-43B7-21FAB88368FB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {58BB599A-81E5-4196-B0FE-2BB4DEC6890C}

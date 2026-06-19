@@ -77,6 +77,7 @@ PRINT 'Stopping services before running this script is recommended.';
 USE TradingApp_PositionDb;
 PRINT 'Clearing PositionService data...';
 DELETE FROM dbo.ProcessedTrades;
+DELETE FROM dbo.PositionMovements;
 DELETE FROM dbo.Positions;
 
 USE TradingApp_TradeCaptureDb;

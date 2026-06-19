@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace PositionService.Infrastructure.Persistence
 {
-    public class PositionDbContextFactory : IDbContextFactory<PositionDbContext>
+    public class PositionDbContextFactory : IDesignTimeDbContextFactory<PositionDbContext>
     {
-        public PositionDbContext CreateDbContext()
+        public PositionDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<PositionDbContext>();
 
