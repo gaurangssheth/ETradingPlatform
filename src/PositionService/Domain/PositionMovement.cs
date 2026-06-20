@@ -35,11 +35,11 @@ namespace PositionService.Domain
 
         public decimal NewNetQuantity { get; set; }
 
-        public decimal NewNetAveragePrice { get; set; }
+        public decimal NewAveragePrice { get; set; }
 
-        public decimal RealisedPnL { get; set; }
+        public decimal RealisedPnl { get; set; }
 
-        public string CorreationId { get; set; } = null!;
+        public string CorrelationId { get; set; } = null!;
 
         public DateTimeOffset CreatedAt { get; set; }
 

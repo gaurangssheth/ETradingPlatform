@@ -7,8 +7,7 @@
         "Microsoft": "Warning",
         "Microsoft.AspNetCore": "Warning",
         "System": "Warning",
-        "TradingGateway.Api": "Debug",
-        "TradeCaptureService": "Debug",
+        "Microsoft.EntityFrameworkCore.Database.Command": "Information",
         "PositionService": "Debug"
       }
     },

@@ -6,6 +6,9 @@
 	<OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="Properties\launchSettings.json" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="NServiceBus" Version="9.2.*" />
     <PackageReference Include="NServiceBus.Extensions.Hosting" Version="3.0.*" />
     <PackageReference Include="NServiceBus.RabbitMQ" Version="10.1.*" />

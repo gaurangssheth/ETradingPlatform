@@ -26,9 +26,9 @@ namespace PositionService.Infrastructure.Persistence.Configurations
             entity.Property(e => e.PreviousNetQuantity).HasPrecision(18, 4).IsRequired();
             entity.Property(e => e.PreviousAveragePrice).HasPrecision(18, 8).IsRequired();
             entity.Property(e => e.NewNetQuantity).HasPrecision(18, 4).IsRequired();
-            entity.Property(e => e.NewNetAveragePrice).HasPrecision(18, 8).IsRequired();
-            entity.Property(e => e.RealisedPnL).HasPrecision(18, 8).IsRequired();
-            entity.Property(e => e.CorreationId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.NewAveragePrice).HasPrecision(18, 8).IsRequired();
+            entity.Property(e => e.RealisedPnl).HasPrecision(18, 8).IsRequired();
+            entity.Property(e => e.CorrelationId).HasMaxLength(100).IsRequired();
 
 
         }

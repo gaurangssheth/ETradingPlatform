@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TradingApp.Shared.ConnnectionStringNames;
+using TradingApp.Shared.Diagnostics;
 
 namespace PositionService.Configuration
 {
@@ -19,8 +20,27 @@ namespace PositionService.Configuration
             var positionDb = configuration.GetConnectionString(ConnectionStringNames.PositionDb)
             ?? throw new InvalidOperationException($"Missing ConnectionStrings:{ConnectionStringNames.PositionDb}");
 
-            services.AddDbContext<PositionDbContext>(options => options.UseSqlServer(positionDb));
+            services.AddDbContext<PositionDbContext>((serviceProvider, options) =>
+            {
+                options.UseSqlServer(positionDb);
+                if (configuration.GetValue<bool>("EfCore:EnableSensitiveDataLogging"))
+                {
+                    options.EnableSensitiveDataLogging();
+                }
 
+                if (configuration.GetValue<bool>("EfCore:EnableDetailedErrors"))
+                {
+                    options.EnableDetailedErrors();
+                }
+                if (configuration.GetValue<bool>("EfCore:EnableInlineSqlLogging"))
+                {
+                    options.AddInterceptors(
+                        serviceProvider.GetRequiredService<InlineSqlLoggingInterceptor>());
+                }
+
+            });
+
+            services.AddSingleton<InlineSqlLoggingInterceptor>();
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IPositionRepository, PositionRepository>();
             services.AddScoped<IProcessedTradeRepository, ProcessedTradeRepository>();

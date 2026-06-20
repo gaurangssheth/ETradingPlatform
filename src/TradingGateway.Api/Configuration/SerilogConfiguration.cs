@@ -13,6 +13,11 @@ public static class SerilogConfiguration
             optional: false,
             reloadOnChange: true);
 
+        builder.Configuration.AddJsonFile(
+            $"serilog.{builder.Environment.EnvironmentName}.json",
+            optional: true,
+            reloadOnChange: true);
+
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
             .Enrich.FromLogContext()

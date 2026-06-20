@@ -12,7 +12,7 @@ using PositionService.Infrastructure.Persistence;
 namespace PositionService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PositionDbContext))]
-    [Migration("20260617164049_AddPositionAccountingAndMovements")]
+    [Migration("20260619212253_AddPositionAccountingAndMovements")]
     partial class AddPositionAccountingAndMovements
     {
         /// <inheritdoc />
@@ -87,7 +87,7 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<string>("CorreationId")
+                    b.Property<string>("CorrelationId")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -95,7 +95,7 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<decimal>("NewNetAveragePrice")
+                    b.Property<decimal>("NewAveragePrice")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
 
@@ -125,7 +125,7 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<decimal>("RealisedPnL")
+                    b.Property<decimal>("RealisedPnl")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
 
