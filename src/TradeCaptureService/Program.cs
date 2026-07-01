@@ -3,6 +3,8 @@ using NServiceBus;
 using Serilog;
 using TradeCaptureService.Configuration;
 
+Console.Title = "ETrading - TradeCaptureService";
+
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>
     {
@@ -15,6 +17,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddTradeCaptureDatabase(context.Configuration);
+        services.AddPositionApplicationServices(context.Configuration);
     })
     .UseTradeCaptureServiceSerilog()
     .UseNServiceBus(context =>

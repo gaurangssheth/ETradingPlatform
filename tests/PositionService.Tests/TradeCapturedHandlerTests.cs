@@ -46,7 +46,8 @@ public class TradeCapturedHandlerTests
 
         await handler.Handle(message, messageContext);
 
-        var position = await dbContext.Positions.SingleAsync();
+        var position = await dbContext.Positions.SingleAsync(
+            x => x.ClientId == message.ClientId && x.Symbol == message.Symbol);
 
         position.ClientId.Should().Be("client-001");
         position.Symbol.Should().Be("EURUSD");
@@ -56,7 +57,7 @@ public class TradeCapturedHandlerTests
         position.UnrealisedPnl.Should().Be(0m);
         position.CorrelationId.Should().Be("handler-test-001");
 
-        var movement = await dbContext.PositionMovements.SingleAsync();
+        var movement = await dbContext.PositionMovements.SingleAsync(x => x.TradeId == tradeId);
 
         movement.PositionId.Should().Be(position.Id);
         movement.TradeId.Should().Be(tradeId);
@@ -72,7 +73,7 @@ public class TradeCapturedHandlerTests
         movement.RealisedPnl.Should().Be(0m);
         movement.CorrelationId.Should().Be("handler-test-001");
 
-        var processedTrade = await dbContext.ProcessedTrades.SingleAsync();
+        var processedTrade = await dbContext.ProcessedTrades.SingleAsync(x => x.TradeId == tradeId);
 
         processedTrade.TradeId.Should().Be(tradeId);
 
@@ -139,7 +140,8 @@ public class TradeCapturedHandlerTests
 
         await handler.Handle(message, messageContext);
 
-        var position = await dbContext.Positions.SingleAsync();
+        var position = await dbContext.Positions.SingleAsync(
+            x => x.ClientId == message.ClientId && x.Symbol == message.Symbol);
 
         position.NetQuantity.Should().Be(60m);
         position.AveragePrice.Should().Be(1.0800m);
@@ -147,7 +149,7 @@ public class TradeCapturedHandlerTests
         position.UnrealisedPnl.Should().Be(0m);
         position.CorrelationId.Should().Be("handler-test-002");
 
-        var movement = await dbContext.PositionMovements.SingleAsync();
+        var movement = await dbContext.PositionMovements.SingleAsync(x => x.TradeId == tradeId);
 
         movement.Side.Should().Be(OrderSide.Sell);
         movement.Quantity.Should().Be(40m);

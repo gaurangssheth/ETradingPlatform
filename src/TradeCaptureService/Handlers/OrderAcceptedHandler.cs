@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using TradeCaptureService.Domain;
 using TradeCaptureService.Infrastructure.UnitOfWork;
+using TradeCaptureService.Pricing;
+using TradeCaptureService.Services;
 using TradingApp.Contracts.Events;
 using TradingApp.Contracts.Shared;
 
@@ -13,11 +15,18 @@ namespace TradeCaptureService.Handlers
     public class OrderAcceptedHandler : IHandleMessages<OrderAccepted>
     {
         private readonly IUnitOfWork unitOfWork;
+        private readonly IPricingClient pricingClient;
+        private readonly ExecutionPriceCalculator executionPriceCalculator;
         private readonly ILogger<OrderAcceptedHandler> logger;
 
-        public OrderAcceptedHandler(IUnitOfWork unitOfWork, ILogger<OrderAcceptedHandler> logger)
+        public OrderAcceptedHandler(IUnitOfWork unitOfWork,
+            IPricingClient pricingClient,
+            ExecutionPriceCalculator executionPriceCalculator,
+            ILogger<OrderAcceptedHandler> logger)
         {
             this.unitOfWork = unitOfWork;
+            this.pricingClient = pricingClient;
+            this.executionPriceCalculator = executionPriceCalculator;
             this.logger = logger;
         }
 
@@ -29,6 +38,13 @@ namespace TradeCaptureService.Handlers
                     message.CorrelationId);
                 return;
             }
+
+            var quote = await this.pricingClient.GetPriceAsync(message.Symbol,
+                message.CorrelationId,
+                context.CancellationToken);
+
+            var executionPrice = executionPriceCalculator.Calculate(message.Side, quote);
+            var notional = message.Quantity * executionPrice;
 
             var tradeId = Guid.NewGuid();
             var capturedAt = DateTimeOffset.UtcNow;
@@ -42,8 +58,8 @@ namespace TradeCaptureService.Handlers
                 Side = message.Side,
                 OrderType = message.OrderType,
                 Quantity = message.Quantity,
-                Price = message.Price,
-                Notional = message.Notional,
+                Price = executionPrice,
+                Notional = notional,
                 Status = TradeStatus.Captured,
                 CapturedAt = capturedAt,
                 CorrelationId = message.CorrelationId

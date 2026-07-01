@@ -44,17 +44,9 @@ namespace OrderService.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<decimal>("Notional")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
                     b.Property<string>("OrderType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 8)
-                        .HasColumnType("decimal(18,8)");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)

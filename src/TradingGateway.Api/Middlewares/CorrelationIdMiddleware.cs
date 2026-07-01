@@ -1,4 +1,5 @@
-﻿using Serilog.Context;
+﻿using Microsoft.Extensions.Primitives;
+using Serilog.Context;
 using TradingApp.Shared.Correlation;
 
 namespace TradingGateway.Api.Middlewares
@@ -16,23 +17,41 @@ namespace TradingGateway.Api.Middlewares
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (!context.Request.Headers.TryGetValue(HeaderName, out var correlationId))
-            {
-                correlationId = Guid.NewGuid().ToString("N");
-                context.Request.Headers[HeaderName] = correlationId;
-            }
+            var correlationId = GetOrCreateCorrelationId(context);
 
-            context.Items[HeaderName] = correlationId.ToString();
+            context.Items[HeaderName] = correlationId;
 
             context.Response.OnStarting(() =>
             {
                 context.Response.Headers[HeaderName] = correlationId;
                 return Task.CompletedTask;
             });
-            using (LogContext.PushProperty("CorrelationId", correlationId))
+            using (LogContext.PushProperty(CorrelationConstants.LogPropertyName, correlationId))
             {
                 await next(context);
             }
         }
+
+        private static string GetOrCreateCorrelationId(HttpContext context)
+        {
+            if (context.Request.Headers.TryGetValue(
+                    HeaderName,
+                    out StringValues correlationIdValues))
+            {
+                var correlationId = correlationIdValues.FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(correlationId))
+                {
+                    return correlationId;
+                }
+            }
+
+            var newCorrelationId = Guid.NewGuid().ToString("N");
+
+            context.Request.Headers[HeaderName] = newCorrelationId;
+
+            return newCorrelationId;
+        }
     }
 }
+

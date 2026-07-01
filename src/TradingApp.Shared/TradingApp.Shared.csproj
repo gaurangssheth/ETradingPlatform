@@ -9,6 +9,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.28" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+	  <PackageReference Include="NServiceBus" Version="9.2.*" />
+	  <PackageReference Include="Serilog" Version="4.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TradingApp.Contracts\TradingApp.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

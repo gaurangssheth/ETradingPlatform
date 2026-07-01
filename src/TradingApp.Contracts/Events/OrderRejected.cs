@@ -7,7 +7,7 @@ using TradingApp.Contracts.Shared;
 
 namespace TradingApp.Contracts.Events
 {
-    public class OrderRejected : IEvent
+    public class OrderRejected : IEvent, ICorrelatedMessage
     {
         public Guid OrderId { get; set; }
 

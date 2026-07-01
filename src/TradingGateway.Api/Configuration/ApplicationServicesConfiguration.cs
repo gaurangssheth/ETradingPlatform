@@ -9,7 +9,7 @@ namespace TradingGateway.Api.Configuration
     public static class ApplicationServicesConfiguration
     {
         public static IServiceCollection AddTradingGatewayApplicationServices(
-            this IServiceCollection services)
+            this IServiceCollection services, IConfiguration configuration)
         {
             services.AddControllers();
 
@@ -19,6 +19,19 @@ namespace TradingGateway.Api.Configuration
             services.AddScoped<IPolymorphicValidator, SubmitOrderCommandValidator>();
             services.AddScoped<IValidatorFactory, ValidatorFactory>();
 
+            var privingServiceUrl = configuration["PricingService:Url"];
+
+            if (string.IsNullOrWhiteSpace(privingServiceUrl))
+            {
+                throw new InvalidOperationException(
+                    "PricingService:Url configuration is missing.");
+            }
+
+            services.AddGrpcClient<PricingService.Grpc.Pricing.PricingClient>(options =>
+            {
+                options.Address = new Uri(privingServiceUrl);
+            });
+            
             return services;
         }
     }

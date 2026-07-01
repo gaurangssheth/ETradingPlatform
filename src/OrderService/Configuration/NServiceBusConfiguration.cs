@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using TradingApp.Contracts.Commands;
 using TradingApp.Shared.ConnnectionStringNames;
 using TradingApp.Shared.Messaging;
+using TradingApp.Shared.Messaging.Correlation;
 
 namespace OrderService.Configuration
 {
@@ -53,6 +54,16 @@ namespace OrderService.Configuration
                 delayed.NumberOfRetries(0);
                 delayed.TimeIncrease(TimeSpan.FromSeconds(1));
             });
+
+            endpointConfiguration.Pipeline.Register(
+                behavior: new IncomingCorrelationIdBehavior(),
+                description: "Adds CorrelationId from incoming NServiceBus headers to Serilog LogContext."
+            );
+
+            endpointConfiguration.Pipeline.Register(
+                behavior: new OutgoingCorrelationIdBehavior(),
+                description: "Adds CorrelationId from outgoing message body to NServiceBus headers."
+            );
 
             return endpointConfiguration;
         }

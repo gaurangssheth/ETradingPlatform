@@ -38,7 +38,7 @@ public static class SerilogConfiguration
 
                 if (!string.IsNullOrWhiteSpace(correlationId))
                 {
-                    diagnosticContext.Set("CorrelationId", correlationId);
+                    diagnosticContext.Set(CorrelationConstants.LogPropertyName, correlationId);
                 }
             };
         });

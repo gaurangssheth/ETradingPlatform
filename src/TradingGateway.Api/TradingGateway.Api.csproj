@@ -16,6 +16,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+	  <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+	  <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
+	  <PackageReference Include="Grpc.Tools" Version="2.81.1">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
     <PackageReference Include="NServiceBus.TransactionalSession" Version="3.4.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
@@ -23,6 +29,9 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.*" />
   </ItemGroup>
+	<ItemGroup>
+		<Protobuf Include="..\PricingService.Grpc\Protos\pricing.proto" GrpcServices="Client" />
+	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TradingApp.Contracts\TradingApp.Contracts.csproj" />
     <ProjectReference Include="..\TradingApp.Shared.Validation\TradingApp.Shared.Validation.csproj" />

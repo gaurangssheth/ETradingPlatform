@@ -21,10 +21,6 @@ namespace OrderService.Domain
 
         public decimal Quantity { get; set; }
 
-        public decimal Price { get; set; }
-
-        public decimal Notional { get; set; }
-
         public string Status { get; set; } = null!;
 
         public string CorrelationId { get; set; } = null!;

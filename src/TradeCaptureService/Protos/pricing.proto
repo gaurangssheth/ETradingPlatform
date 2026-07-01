@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option csharp_namespace = "PricingService.Grpc";
+
+package pricing;
+
+service Pricing {
+	rpc GetPrice (GetPriceRequest) returns (GetPriceResponse);
+}
+
+message GetPriceRequest {
+	string symbol = 1;
+}
+
+message GetPriceResponse {
+	string symbol = 1;
+	double bid = 2;
+	double ask = 3;
+	double mid = 4;
+}

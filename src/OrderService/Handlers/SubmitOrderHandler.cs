@@ -24,8 +24,6 @@ namespace OrderService.Handlers
 
         public async Task Handle(SubmitOrder message, IMessageHandlerContext context)
         {
-            var price = 1.0850m;
-            var notional = message.Quantity * price;
             var accepted = DateTimeOffset.UtcNow;
 
             var order = new Order
@@ -36,8 +34,6 @@ namespace OrderService.Handlers
                 Side = message.Side,
                 OrderType = message.OrderType,
                 Quantity = message.Quantity,
-                Price = price,
-                Notional = notional,
                 Status = "Accepted",
                 CorrelationId = message.CorrelationId,
                 CreatedAt = accepted,
@@ -56,15 +52,13 @@ namespace OrderService.Handlers
 
             await context.Publish(new OrderAccepted
             {
-                OrderId = message.OrderId,
-                ClientId = message.ClientId,
-                Symbol = message.Symbol,
-                Side = message.Side,
-                OrderType = message.OrderType,
-                Quantity = message.Quantity,
-                Price = price,
-                Notional = notional,
-                AcceptedAt = DateTimeOffset.UtcNow,
+                OrderId = order.Id,
+                ClientId = order.ClientId,
+                Symbol = order.Symbol,
+                Side = order.Side,
+                Quantity = order.Quantity,
+                OrderType = order.OrderType,
+                AcceptedAt = order.AcceptedAt!.Value,
                 CorrelationId = message.CorrelationId
             });
         }

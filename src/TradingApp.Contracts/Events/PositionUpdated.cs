@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.Contracts.Shared;
 
 namespace TradingApp.Contracts.Events
 {
-    public class PositionUpdated : IEvent
+    public class PositionUpdated : IEvent, ICorrelatedMessage
     {
         public Guid PositionId { get; set; }
 

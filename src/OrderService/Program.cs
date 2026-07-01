@@ -1,5 +1,7 @@
 ﻿using OrderService.Configuration;
 
+Console.Title = "ETrading - OrderService";
+
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>
     {

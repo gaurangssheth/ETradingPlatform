@@ -3,6 +3,8 @@ using StackExchange.Redis;
 using TradingGateway.Api.Middlewares;
 using TradingGateway.Api.Configuration;
 
+Console.Title = "ETrading - TradingGateway.Api";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddTradingGatewaySerilog();
@@ -25,7 +27,7 @@ builder.Services.AddCors(options =>
 var gatewayDb = builder.Configuration.GetConnectionString("GatewayDb")
     ?? throw new InvalidOperationException("Missing ConnectionStrings:GatewayDb");
 
-builder.Services.AddTradingGatewayApplicationServices();
+builder.Services.AddTradingGatewayApplicationServices(builder.Configuration);
 
 // Redis distributed cache
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>

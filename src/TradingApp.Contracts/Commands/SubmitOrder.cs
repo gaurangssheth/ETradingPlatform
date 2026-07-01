@@ -7,7 +7,7 @@ using TradingApp.Contracts.Shared;
 
 namespace TradingApp.Contracts.Commands
 {
-    public class SubmitOrder : ICommand
+    public class SubmitOrder : ICommand, ICorrelatedMessage
     {
         public Guid OrderId { get; set; }
 

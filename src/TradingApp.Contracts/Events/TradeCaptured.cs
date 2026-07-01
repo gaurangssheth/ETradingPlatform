@@ -7,7 +7,7 @@ using TradingApp.Contracts.Shared;
 
 namespace TradingApp.Contracts.Events
 {
-    public sealed class TradeCaptured : IEvent
+    public sealed class TradeCaptured : IEvent, ICorrelatedMessage
     {
         public Guid TradeId { get; set; }
 

@@ -1,6 +1,7 @@
 using PositionService.Configuration;
 
-Console.WriteLine("PositionService starting...");
+Console.Title = "ETrading - PositionService";
+
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>
     {

@@ -7,7 +7,7 @@ using TradingApp.Contracts.Shared;
 
 namespace TradingApp.Contracts.Events
 {
-    public sealed class OrderAccepted : IEvent
+    public sealed class OrderAccepted : IEvent, ICorrelatedMessage
     {
         public Guid OrderId { get; set; }
 
@@ -21,13 +21,9 @@ namespace TradingApp.Contracts.Events
 
         public decimal Quantity { get; set; }
 
-        public decimal Price { get; set; }
-
-        public decimal Notional { get; set; }
-
         public DateTimeOffset AcceptedAt { get; set; }
 
-        public string RiskDecisionId { get; set; } = null!;
+        public string? RiskDecisionId { get; set; } = null!;
 
         public string CorrelationId { get; set; } = null!;
 
