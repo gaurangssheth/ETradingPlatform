@@ -11,7 +11,7 @@ namespace TradeCaptureService.Configuration
 {
     public static class ApplicationServicesConfiguration
     {
-        public static IServiceCollection AddPositionApplicationServices(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
             var privingServiceUrl = configuration["PricingService:Url"];
 

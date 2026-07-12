@@ -17,7 +17,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddTradeCaptureDatabase(context.Configuration);
-        services.AddPositionApplicationServices(context.Configuration);
+        services.AddApplicationServices(context.Configuration);
     })
     .UseTradeCaptureServiceSerilog()
     .UseNServiceBus(context =>

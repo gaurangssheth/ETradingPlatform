@@ -44,16 +44,47 @@ namespace OrderService.Configuration
             endpointConfiguration.SendFailedMessagesTo("error");
             endpointConfiguration.AuditProcessedMessagesTo("audit");
 
+            var immediateRetries =
+                context.Configuration.GetValue<int>("Recoverability:ImmediateRetries");
+
+            var delayedRetries =
+                context.Configuration.GetValue<int>("Recoverability:DelayedRetries");
+
+            var delayedRetryTimeIncreaseSeconds =
+                context.Configuration.GetValue<int>(
+                    "Recoverability:DelayedRetryTimeIncreaseSeconds");
+
+            if (immediateRetries < 0)
+            {
+                throw new InvalidOperationException(
+                    "Recoverability:ImmediateRetries cannot be negative.");
+            }
+
+            if (delayedRetries < 0)
+            {
+                throw new InvalidOperationException(
+                    "Recoverability:DelayedRetries cannot be negative.");
+            }
+
+            if (delayedRetryTimeIncreaseSeconds <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Recoverability:DelayedRetryTimeIncreaseSeconds must be greater than zero.");
+            }
+
             var recoverability = endpointConfiguration.Recoverability();
 
             recoverability.Immediate(immediate =>
-                immediate.NumberOfRetries(0));
+                immediate.NumberOfRetries(immediateRetries));
 
             recoverability.Delayed(delayed =>
             {
-                delayed.NumberOfRetries(0);
-                delayed.TimeIncrease(TimeSpan.FromSeconds(1));
+                delayed.NumberOfRetries(delayedRetries);
+                delayed.TimeIncrease(TimeSpan.FromSeconds(delayedRetryTimeIncreaseSeconds));
             });
+
+            recoverability.CustomPolicy(
+                OrderServiceRecoverabilityPolicy.Invoke);
 
             endpointConfiguration.Pipeline.Register(
                 behavior: new IncomingCorrelationIdBehavior(),

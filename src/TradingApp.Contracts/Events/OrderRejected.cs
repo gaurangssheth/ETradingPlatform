@@ -25,6 +25,8 @@ namespace TradingApp.Contracts.Events
 
         public DateTimeOffset RejectedAt { get; set; }
 
+        public string RiskDecisionId { get; set; } = null!;
+
         public string CorrelationId { get; set; } = null!;
     }
 }

@@ -17,9 +17,9 @@ namespace PositionService.Domain
 
         public Guid OrderId { get; set; }
 
-        public string ClientId { get; set; }
+        public string ClientId { get; set; } = null!;
 
-        public string Symbol { get; set; }
+        public string Symbol { get; set; } = null!;
 
         public OrderSide Side { get; set; }
 

@@ -8,7 +8,7 @@ namespace TradingGateway.Api.Configuration
 {
     public static class ApplicationServicesConfiguration
     {
-        public static IServiceCollection AddTradingGatewayApplicationServices(
+        public static IServiceCollection AddApplicationServices(
             this IServiceCollection services, IConfiguration configuration)
         {
             services.AddControllers();

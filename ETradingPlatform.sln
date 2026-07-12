@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11620.152 stable
+VisualStudioVersion = 18.4.11620.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingApp.Contracts", "src\TradingApp.Contracts\TradingApp.Contracts.csproj", "{C5E30D5C-E29B-6AB0-E6D7-4DD5C4DDD616}"
 EndProject
@@ -32,6 +32,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingApp.Shared.Tests", "tests\TradingApp.Shared.Tests\TradingApp.Shared.Tests.csproj", "{7431D4C4-A5EA-4309-A096-05040EB4E53A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradeCaptureService.Tests", "tests\TradeCaptureService.Tests\TradeCaptureService.Tests.csproj", "{F3B32705-7682-8FDA-BA16-21468080FB0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RiskService.Grpc", "src\RiskService.Grpc\RiskService.Grpc.csproj", "{D7038AE9-0A7A-4811-927C-972CBF9A8D08}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RiskService.Tests", "tests\RiskService.Tests\RiskService.Tests.csproj", "{FB068EF6-68F7-445C-9346-3A40C304DB28}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -95,6 +99,14 @@ Global
 		{F3B32705-7682-8FDA-BA16-21468080FB0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3B32705-7682-8FDA-BA16-21468080FB0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3B32705-7682-8FDA-BA16-21468080FB0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7038AE9-0A7A-4811-927C-972CBF9A8D08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7038AE9-0A7A-4811-927C-972CBF9A8D08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7038AE9-0A7A-4811-927C-972CBF9A8D08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7038AE9-0A7A-4811-927C-972CBF9A8D08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB068EF6-68F7-445C-9346-3A40C304DB28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB068EF6-68F7-445C-9346-3A40C304DB28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB068EF6-68F7-445C-9346-3A40C304DB28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB068EF6-68F7-445C-9346-3A40C304DB28}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -106,6 +118,7 @@ Global
 		{962901DF-80B8-4B0A-8880-952FDFA6A15E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7431D4C4-A5EA-4309-A096-05040EB4E53A} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{F3B32705-7682-8FDA-BA16-21468080FB0B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{FB068EF6-68F7-445C-9346-3A40C304DB28} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {58BB599A-81E5-4196-B0FE-2BB4DEC6890C}

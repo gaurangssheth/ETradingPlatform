@@ -27,7 +27,7 @@ builder.Services.AddCors(options =>
 var gatewayDb = builder.Configuration.GetConnectionString("GatewayDb")
     ?? throw new InvalidOperationException("Missing ConnectionStrings:GatewayDb");
 
-builder.Services.AddTradingGatewayApplicationServices(builder.Configuration);
+builder.Services.AddApplicationServices(builder.Configuration);
 
 // Redis distributed cache
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>

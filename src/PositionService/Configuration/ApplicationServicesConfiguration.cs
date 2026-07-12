@@ -10,7 +10,7 @@ namespace PositionService.Configuration
 {
     public static class ApplicationServicesConfiguration
     {
-        public static IServiceCollection AddPositionApplicationServices(this IServiceCollection services)
+        public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             services.AddSingleton<PositionCalculator>();
 

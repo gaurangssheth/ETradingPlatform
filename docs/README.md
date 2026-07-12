@@ -441,6 +441,7 @@ PRINT 'Stop all services before running this script.';
 
 USE TradingApp_PositionDb;
 PRINT 'Clearing PositionService data...';
+DELETE FROM dbo.PositionMovements;
 DELETE FROM dbo.ProcessedTrades;
 DELETE FROM dbo.Positions;
 

@@ -14,6 +14,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddOrderDatabase(context.Configuration);
+        services.AddApplicationServices(context.Configuration);
     })
     .UseOrderServiceSerilog()
     .UseNServiceBus(context =>
