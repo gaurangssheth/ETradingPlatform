@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option csharp_namespace = "ReferenceDataService.Grpc";
+
+package referencedata;
+
+service ReferenceData {
+  rpc GetInstrument (GetInstrumentRequest) returns (GetInstrumentResponse);
+}
+
+message GetInstrumentRequest {
+  string symbol = 1;
+}
+
+message GetInstrumentResponse {
+  string instrumentId = 1;
+  string symbol = 2;
+  AssetClass assetClass = 3;
+  bool isTradable = 4;
+
+  oneof details {
+    FxInstrumentDetails fxDetails = 5;
+    EquityInstrumentDetails equityDetails = 6;
+    BondInstrumentDetails bondDetails = 7;
+  }
+}
+
+enum AssetClass {
+  ASSET_CLASS_UNSPECIFIED = 0;
+  ASSET_CLASS_FX = 1;
+  ASSET_CLASS_EQUITY = 2;
+  ASSET_CLASS_FIXED_INCOME = 3;
+}
+
+message FxInstrumentDetails {
+  string baseCurrency = 1;
+  string quoteCurrency = 2;
+  double pipSize = 3;
+}
+
+message EquityInstrumentDetails {
+  string exchange = 1;
+  string tradingCurrency = 2;
+}
+
+message BondInstrumentDetails {
+  string isin = 1;
+  string issuer = 2;
+  double couponRate = 3;
+  string maturityDate = 4;
+  double parValue = 5;
+  DayCountConvention dayCountConvention = 6;
+}
+
+enum DayCountConvention {
+  DAY_COUNT_CONVENTION_UNSPECIFIED = 0;
+  DAY_COUNT_CONVENTION_ACTUAL_ACTUAL = 1;
+  DAY_COUNT_CONVENTION_ACTUAL_365 = 2;
+  DAY_COUNT_CONVENTION_ACTUAL_360 = 3;
+  DAY_COUNT_CONVENTION_THIRTY_360 = 4;
+}

@@ -135,9 +135,9 @@ namespace RiskService.Tests
             var service = CreateService();
 
             var headers = new Metadata
-        {
-            { GrpcCorrelationConstants.MetadataKey, "risk-service-test-001" }
-        };
+            {
+                { GrpcCorrelationConstants.MetadataKey, "risk-service-test-001" }
+            };
 
             var response = await service.CheckOrderRisk(
                 new CheckOrderRiskRequest
