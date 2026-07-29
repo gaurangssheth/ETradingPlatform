@@ -16,7 +16,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddOrderDatabase(context.Configuration);
         services.AddApplicationServices(context.Configuration);
     })
-    .UseOrderServiceSerilog()
+    .UseSerilogConfiguration()
     .UseNServiceBus(context =>
     {
         return context.ConfigureOrderServiceEndpoint();

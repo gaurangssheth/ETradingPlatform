@@ -10,7 +10,7 @@ namespace TradeCaptureService.Configuration
 {
     public static class SerilogConfiguration
     {
-        public static IHostBuilder UseTradeCaptureServiceSerilog(this IHostBuilder hostBuilder)
+        public static IHostBuilder UseSerilogConfiguration(this IHostBuilder hostBuilder)
         {
             return hostBuilder.UseSerilog((context, services, configuration) =>
             {

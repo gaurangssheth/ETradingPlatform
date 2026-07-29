@@ -27,6 +27,12 @@ namespace TradeCaptureService.Domain
 
         public decimal Notional { get; set; }
 
+        public Guid InstrumentId { get; set; }
+
+        public AssetClass AssetClass { get; set; }
+
+        public CurrencyCode NotionalCurrency { get; set; }
+
         public TradeStatus Status { get; set; }
 
         public string CorrelationId { get; set; } = null!;

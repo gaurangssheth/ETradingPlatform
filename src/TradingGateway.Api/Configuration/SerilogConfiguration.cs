@@ -28,7 +28,7 @@ public static class SerilogConfiguration
         return builder;
     }
 
-    public static IApplicationBuilder UseTradingGatewaySerilog(this IApplicationBuilder app)
+    public static IApplicationBuilder UseSerilogConfiguration(this IApplicationBuilder app)
     {
         app.UseSerilogRequestLogging(options =>
         {

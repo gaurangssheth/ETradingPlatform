@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TradeCaptureService.Domain;
+using TradeCaptureService.Infrastructure.Persistence.Configurations;
 
 namespace TradeCaptureService.Infrastructure.Persistence
 {

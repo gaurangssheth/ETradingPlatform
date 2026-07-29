@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReferenceDataService.Domain.Common
+namespace TradingApp.SharedKernel
 {
     public static class Guard
     {

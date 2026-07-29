@@ -49,6 +49,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReferenceDataService.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReferenceDataService.Infrastructure.Tests", "tests\ReferenceDataService.Infrastructure.Tests\ReferenceDataService.Infrastructure.Tests.csproj", "{8A666AA7-C0C6-483B-949B-8BB9234C627B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingApp.SharedKernel", "src\TradingApp.SharedKernel\TradingApp.SharedKernel.csproj", "{6A291B8E-0438-42EF-911C-58197A946DB3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +145,10 @@ Global
 		{8A666AA7-C0C6-483B-949B-8BB9234C627B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A666AA7-C0C6-483B-949B-8BB9234C627B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A666AA7-C0C6-483B-949B-8BB9234C627B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A291B8E-0438-42EF-911C-58197A946DB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A291B8E-0438-42EF-911C-58197A946DB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A291B8E-0438-42EF-911C-58197A946DB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A291B8E-0438-42EF-911C-58197A946DB3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

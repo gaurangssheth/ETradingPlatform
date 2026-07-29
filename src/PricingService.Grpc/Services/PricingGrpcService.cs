@@ -13,14 +13,18 @@ namespace PricingService.Grpc.Services
         {
             ["EURUSD"] = 1.0850,
             ["GBPUSD"] = 1.2700,
-            ["USDJPY"] = 157.50
+            ["USDJPY"] = 157.50,
+            ["AAPL"] = 210.25,
+            ["GB00TEST1234"] = 98.45
         };
 
         private static readonly IReadOnlyDictionary<string, double> Spreads = new Dictionary<string, double>
         {
             ["EURUSD"] = 0.0002,
             ["GBPUSD"] = 0.0003,
-            ["USDJPY"] = 0.02
+            ["USDJPY"] = 0.02,
+            ["AAPL"] = 0.50,
+            ["GB00TEST1234"] = 0.10
         };
 
         public PricingGrpcService(ILogger<PricingGrpcService> logger)

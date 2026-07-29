@@ -6,7 +6,9 @@
         {
             "EURUSD",
             "GBPUSD",
-            "USDJPY"
+            "USDJPY",
+            "AAPL",
+            "GB00TEST1234"
         };
 
         public RiskRuleResult Check(RiskCheckRequestModel request)

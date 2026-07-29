@@ -17,7 +17,7 @@ namespace TradeCaptureService.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.28")
+                .HasAnnotation("ProductVersion", "8.0.29")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -27,6 +27,12 @@ namespace TradeCaptureService.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AssetClass")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<DateTimeOffset>("CapturedAt")
                         .HasColumnType("datetimeoffset");
@@ -41,9 +47,19 @@ namespace TradeCaptureService.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("InstrumentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("Notional")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("NotionalCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
@@ -78,10 +94,31 @@ namespace TradeCaptureService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("InstrumentId");
+
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Trades", (string)null);
+                    b.ToTable("Trades", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Trades_AssetClass", "[AssetClass] COLLATE Latin1_General_100_BIN2 IN ('Fx', 'Equity', 'FixedIncome')");
+
+                            t.HasCheckConstraint("CK_Trades_InstrumentId_NotEmpty", "[InstrumentId] <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_Trades_NotionalCurrency", "LEN([NotionalCurrency]) = 3 AND [NotionalCurrency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%'");
+
+                            t.HasCheckConstraint("CK_Trades_Notional_Positive", "[Notional] > 0");
+
+                            t.HasCheckConstraint("CK_Trades_OrderType", "[OrderType] COLLATE Latin1_General_100_BIN2 IN ('Market', 'Limit')");
+
+                            t.HasCheckConstraint("CK_Trades_Price_Positive", "[Price] > 0");
+
+                            t.HasCheckConstraint("CK_Trades_Quantity_Positive", "[Quantity] > 0");
+
+                            t.HasCheckConstraint("CK_Trades_Side", "[Side] COLLATE Latin1_General_100_BIN2 IN ('Buy', 'Sell')");
+
+                            t.HasCheckConstraint("CK_Trades_Status", "[Status] COLLATE Latin1_General_100_BIN2 IN ('Captured', 'Cancelled', 'Amended')");
+                        });
                 });
 #pragma warning restore 612, 618
         }

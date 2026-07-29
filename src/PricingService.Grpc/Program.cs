@@ -5,7 +5,7 @@ Console.Title = "ETrading - PricingService.Grpc";
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddPricingServiceSerilog();
+builder.AddSerilogConfiguration();
 
 // Add services to the container.
 builder.Services.AddGrpc();

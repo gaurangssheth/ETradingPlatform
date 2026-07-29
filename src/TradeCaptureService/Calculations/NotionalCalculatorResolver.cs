@@ -1,11 +1,11 @@
-﻿using ReferenceDataService.Domain.Instruments;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Domain;
 
-namespace ReferenceDataService.Domain.Calculations
+namespace TradeCaptureService.Calculations
 {
     public sealed class NotionalCalculatorResolver
     {

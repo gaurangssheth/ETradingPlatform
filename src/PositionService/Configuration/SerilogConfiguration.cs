@@ -10,7 +10,7 @@ namespace PositionService.Configuration
 {
     public static class SerilogConfiguration
     {
-        public static IHostBuilder UsePositionServiceSerilog(this IHostBuilder hostBuilder)
+        public static IHostBuilder UseSerilogConfiguration(this IHostBuilder hostBuilder)
         {
             return hostBuilder.UseSerilog((context, services, configuration) =>
             {

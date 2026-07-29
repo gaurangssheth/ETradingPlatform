@@ -7,20 +7,23 @@ using NServiceBus.Testing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Calculations;
 using TradeCaptureService.Domain;
 using TradeCaptureService.Handlers;
 using TradeCaptureService.Infrastructure.Persistence;
 using TradeCaptureService.Infrastructure.Repositories;
 using TradeCaptureService.Infrastructure.UnitOfWork;
 using TradeCaptureService.Pricing;
+using TradeCaptureService.ReferenceData;
 using TradeCaptureService.Services;
+using TradeCaptureService.Tests.Infrastructure.Persistence;
 using TradingApp.Contracts.Events;
 using TradingApp.Contracts.Shared;
+using TradingApp.SharedKernel;
 
-namespace TradeCaptureService_tests.Handlers
+namespace TradeCaptureService.Tests.Handlers
 {
     public class OrderAcceptedHandlerTests
     {
@@ -33,12 +36,29 @@ namespace TradeCaptureService_tests.Handlers
             await using var dbContext = CreateDbContext(connection);
             await dbContext.Database.EnsureCreatedAsync();
 
+            var instrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "EURUSD",
+                AssetClass = AssetClass.Fx,
+                IsTradable = true
+            };
+
+            var details = new FxInstrumentReferenceDetails(instrument.InstrumentId,
+                "EUR",
+                "USD",
+                0.0001m);
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
             var pricingClient = CreatePricingClient(
                 bid: 1.0849m,
                 ask: 1.0851m,
                 mid: 1.0850m);
 
-            var handler = CreateHandler(dbContext, pricingClient);
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
             var messageContext = new TestableMessageHandlerContext();
 
             var orderId = Guid.NewGuid();
@@ -89,6 +109,9 @@ namespace TradeCaptureService_tests.Handlers
             published.Notional.Should().Be(108510m);
             published.Status.Should().Be(TradeStatus.Captured);
             published.CorrelationId.Should().Be("handler-test-buy");
+            published.InstrumentId.Should().Be(trade.InstrumentId);
+            published.AssetClass.Should().Be(TradingApp.SharedKernel.AssetClass.Fx);
+            published.NotionalCurrency.Should().Be("USD");
 
             pricingClient.Verify(
                 x => x.GetPriceAsync(
@@ -107,12 +130,29 @@ namespace TradeCaptureService_tests.Handlers
             await using var dbContext = CreateDbContext(connection);
             await dbContext.Database.EnsureCreatedAsync();
 
+            var instrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "EURUSD",
+                AssetClass = AssetClass.Fx,
+                IsTradable = true
+            };
+
+            var details = new FxInstrumentReferenceDetails(instrument.InstrumentId,
+                "EUR",
+                "USD",
+                0.0001m);
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
             var pricingClient = CreatePricingClient(
                 bid: 1.0849m,
                 ask: 1.0851m,
                 mid: 1.0850m);
 
-            var handler = CreateHandler(dbContext, pricingClient);
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
             var messageContext = new TestableMessageHandlerContext();
 
             var orderId = Guid.NewGuid();
@@ -174,13 +214,16 @@ namespace TradeCaptureService_tests.Handlers
             {
                 Id = Guid.NewGuid(),
                 OrderId = orderId,
+                InstrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 ClientId = "client-001",
                 Symbol = "EURUSD",
+                AssetClass = AssetClass.Fx,
                 Side = OrderSide.Buy,
                 OrderType = OrderType.Market,
                 Quantity = 100000m,
                 Price = 1.0851m,
                 Notional = 108510m,
+                NotionalCurrency = new CurrencyCode("USD"),
                 Status = TradeStatus.Captured,
                 CapturedAt = DateTimeOffset.UtcNow,
                 CorrelationId = "existing-trade"
@@ -193,7 +236,24 @@ namespace TradeCaptureService_tests.Handlers
                 ask: 1.0851m,
                 mid: 1.0850m);
 
-            var handler = CreateHandler(dbContext, pricingClient);
+            var instrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "EURUSD",
+                AssetClass = AssetClass.Fx,
+                IsTradable = true
+            };
+
+            var details = new FxInstrumentReferenceDetails(instrument.InstrumentId,
+                "EUR",
+                "USD",
+                0.0001m);
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
             var messageContext = new TestableMessageHandlerContext();
 
             var message = new OrderAccepted
@@ -227,18 +287,206 @@ namespace TradeCaptureService_tests.Handlers
                 Times.Never);
         }
 
+        [Fact]
+        public async Task Handle_WhenEquityBuyOrderAccepted_ShouldUseEquityNotionalCalculator()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+
+            await connection.OpenAsync();
+
+            await using var dbContext = CreateDbContext(connection);
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var instrumentId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "AAPL",
+                AssetClass = AssetClass.Equity,
+                IsTradable = true
+            };
+
+            var details = new EquityInstrumentReferenceDetails(
+                instrumentId,
+                "NASDAQ",
+                "USD");
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
+            var pricingClient = CreatePricingClient(
+                bid: 210.00m,
+                ask: 210.50m,
+                mid: 210.25m);
+
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
+
+            var messageContext = new TestableMessageHandlerContext();
+
+            var orderId = Guid.NewGuid();
+
+            var message = new OrderAccepted
+            {
+                OrderId = orderId,
+                ClientId = "client-001",
+                Symbol = "AAPL",
+                Side = OrderSide.Buy,
+                OrderType = OrderType.Market,
+                Quantity = 100m,
+                AcceptedAt = DateTimeOffset.UtcNow,
+                RiskDecisionId = "risk-equity-001",
+                CorrelationId = "handler-test-equity"
+            };
+
+            await handler.Handle(message, messageContext);
+
+            var trade = await dbContext.Trades
+                .SingleAsync(x => x.OrderId == orderId);
+
+            trade.InstrumentId.Should().Be(instrumentId);
+            trade.Symbol.Should().Be("AAPL");
+            trade.AssetClass.Should().Be(AssetClass.Equity);
+            trade.Price.Should().Be(210.50m);
+            trade.Quantity.Should().Be(100m);
+            trade.Notional.Should().Be(21_050m);
+
+            trade.NotionalCurrency
+                .Should()
+                .Be(new CurrencyCode("USD"));
+
+            messageContext.PublishedMessages.Should().HaveCount(1);
+            var published = messageContext.PublishedMessages.Single().Message
+                .Should()
+                .BeOfType<TradeCaptured>()
+                .Subject;
+
+            published.AssetClass.Should().Be(TradingApp.SharedKernel.AssetClass.Equity);
+            published.NotionalCurrency.Should().Be("USD");
+
+            referenceDataClient.Verify(
+                x => x.GetInstrumentAsync(
+                    "AAPL",
+                    "handler-test-equity",
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            pricingClient.Verify(
+                x => x.GetPriceAsync(
+                    "AAPL",
+                    "handler-test-equity",
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_WhenFixedIncomeBuyOrderAccepted_ShouldUseBondNotionalCalculator()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+
+            await connection.OpenAsync();
+
+            await using var dbContext = CreateDbContext(connection);
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var instrumentId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "GB00TEST1234",
+                AssetClass = AssetClass.FixedIncome,
+                IsTradable = true
+            };
+
+            var details = new BondInstrumentReferenceDetails(
+                instrumentId,
+                isin: "GB00TEST1234",
+                issuer: "UK Government",
+                denominationCurrency: "GBP",
+                couponRate: 4.25m,
+                maturityDate: new DateOnly(2035, 6, 30),
+                parValue: 100m,
+                dayCountConvention: DayCountConvention.ActualActual);
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
+            var pricingClient = CreatePricingClient(
+                bid: 98.40m,
+                ask: 98.50m,
+                mid: 98.45m);
+
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
+
+            var messageContext = new TestableMessageHandlerContext();
+
+            var orderId = Guid.NewGuid();
+
+            var message = new OrderAccepted
+            {
+                OrderId = orderId,
+                ClientId = "client-001",
+                Symbol = "GB00TEST1234",
+                Side = OrderSide.Buy,
+                OrderType = OrderType.Market,
+                Quantity = 1_000_000m,
+                AcceptedAt = DateTimeOffset.UtcNow,
+                RiskDecisionId = "risk-equity-001",
+                CorrelationId = "handler-test-bond"
+            };
+
+            await handler.Handle(message, messageContext);
+
+            var trade = await dbContext.Trades
+                .SingleAsync(x => x.OrderId == orderId);
+
+            trade.InstrumentId.Should().Be(instrumentId);
+            trade.Symbol.Should().Be("GB00TEST1234");
+            trade.AssetClass.Should().Be(AssetClass.FixedIncome);
+            trade.Price.Should().Be(98.50m);
+            trade.Quantity.Should().Be(1_000_000m);
+            trade.Notional.Should().Be(985_000m);
+
+            trade.NotionalCurrency
+            .Should()
+            .Be(new CurrencyCode("GBP"));
+
+            messageContext.PublishedMessages.Should().HaveCount(1);
+            var published = messageContext.PublishedMessages.Single().Message
+                .Should()
+                .BeOfType<TradeCaptured>()
+                .Subject;
+
+            published.AssetClass.Should().Be(TradingApp.SharedKernel.AssetClass.FixedIncome);
+            published.NotionalCurrency.Should().Be("GBP");
+
+            referenceDataClient.Verify(
+                x => x.GetInstrumentAsync(
+                    "GB00TEST1234",
+                    "handler-test-bond",
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            pricingClient.Verify(
+                x => x.GetPriceAsync(
+                    "GB00TEST1234",
+                    "handler-test-bond",
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         private TradeDbContext CreateDbContext(SqliteConnection connection)
         {
             var options = new DbContextOptionsBuilder<TradeDbContext>()
                 .UseSqlite(connection)
                 .Options;
 
-            return new TradeDbContext(options);
+            return new SqliteTradeDbContext(options);
         }
 
         private OrderAcceptedHandler CreateHandler(
             TradeDbContext dbContext, 
-            Mock<IPricingClient> pricingClient)
+            Mock<IPricingClient> pricingClient,
+            Mock<IReferenceDataClient> referenceDataClient)
         {
             var unitOfWork = new EfUnitOfWork(
                 dbContext,
@@ -247,8 +495,21 @@ namespace TradeCaptureService_tests.Handlers
             return new OrderAcceptedHandler(
                 unitOfWork,
                 pricingClient.Object,
+                referenceDataClient.Object,
                 new ExecutionPriceCalculator(),
+                CreateResolver(),
                 NullLogger<OrderAcceptedHandler>.Instance);
+        }
+
+        private static NotionalCalculatorResolver CreateResolver()
+        {
+            return new NotionalCalculatorResolver(
+                new INotionalCalculator[]
+                {
+                new FxNotionalCalculator(),
+                new EquityNotionalCalculator(),
+                new BondNotionalCalculator()
+                });
         }
 
         private static Mock<IPricingClient> CreatePricingClient(
@@ -271,6 +532,30 @@ namespace TradeCaptureService_tests.Handlers
                 });
 
             return pricingClient;
+        }
+
+        private static Mock<IReferenceDataClient> CreateReferenceDataClient(
+            InstrumentReferenceData instrumentReferenceData, IInstrumentReferenceDetails instrumentReferenceDetails)
+        {
+            var referenceDataClient = new Mock<IReferenceDataClient>();
+
+            referenceDataClient.Setup(x => x.GetInstrumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                string symbol,
+                string? _,
+                CancellationToken _) =>
+                {
+                    return new InstrumentReferenceDefinition
+                    (
+                        instrumentReferenceData,
+                        instrumentReferenceDetails
+                    );
+                });
+
+            return referenceDataClient;
         }
     }
 }

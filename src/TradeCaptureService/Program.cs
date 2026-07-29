@@ -19,7 +19,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTradeCaptureDatabase(context.Configuration);
         services.AddApplicationServices(context.Configuration);
     })
-    .UseTradeCaptureServiceSerilog()
+    .UseSerilogConfiguration()
     .UseNServiceBus(context =>
     {
         return context.ConfigureTradeCaptureEndpoint();

@@ -1,5 +1,4 @@
-﻿using ReferenceDataService.Domain.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +12,7 @@ namespace ReferenceDataService.Domain.Instruments
             Guid instrumentId,
             string isin,
             string issuer,
+            string denominationCurrency,
             decimal couponRate,
             DateOnly maturityDate,
             decimal parValue,
@@ -39,6 +39,7 @@ namespace ReferenceDataService.Domain.Instruments
                     "Day count convention is not supported.");
             }
 
+            DenominationCurrency = new CurrencyCode(denominationCurrency);
             DayCountConvention = dayCountConvention;
         }
 
@@ -47,6 +48,8 @@ namespace ReferenceDataService.Domain.Instruments
         public string Isin { get; }
 
         public string Issuer { get; }
+
+        public CurrencyCode DenominationCurrency { get; }
 
         public decimal CouponRate { get; }
 

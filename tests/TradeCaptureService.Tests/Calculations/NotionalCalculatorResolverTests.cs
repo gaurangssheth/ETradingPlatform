@@ -1,13 +1,14 @@
 ﻿using FluentAssertions;
-using ReferenceDataService.Domain.Calculations;
-using ReferenceDataService.Domain.Instruments;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Calculations;
+using TradeCaptureService.Domain;
+using TradingApp.SharedKernel;
 
-namespace ReferenceDataService.Domain.Tests.Calculations
+namespace TradeCaptureService.Tests.Calculations
 {
     public class NotionalCalculatorResolverTests
     {
@@ -18,14 +19,7 @@ namespace ReferenceDataService.Domain.Tests.Calculations
         public void Resolve_WithSupportedAssetClass_ShouldReturnCorrectCalculator(
             AssetClass assetClass, Type expectedCalculatorType)
         {
-            var resolver = new NotionalCalculatorResolver(
-                new INotionalCalculator[]
-                {
-                    new FxNotionalCalculator(),
-                    new EquityNotionalCalculator(),
-                    new BondNotionalCalculator()
-                }
-            );
+            var resolver = CreateResolver();
 
             var calculator = resolver.Resolve(assetClass);
             calculator.Should().BeOfType(expectedCalculatorType);
@@ -34,13 +28,7 @@ namespace ReferenceDataService.Domain.Tests.Calculations
         [Fact]
         public void Resolve_WhenCalculatorIsNotRegistered_ShouldThrowNotSupportedException()
         {
-            var resolver = new NotionalCalculatorResolver(
-                new INotionalCalculator[]
-                {
-                    new FxNotionalCalculator(),
-                    new EquityNotionalCalculator(),
-                    new BondNotionalCalculator()
-                });
+            var resolver = CreateResolver();
 
             Func<INotionalCalculator> action = () => resolver.Resolve((AssetClass)999); // Using an unsupported AssetClass value
 
@@ -48,8 +36,17 @@ namespace ReferenceDataService.Domain.Tests.Calculations
                 .Throw<NotSupportedException>()
                 .WithMessage(
                     "No notional calculator found for asset class '999'.");
+        }
 
-
+        private static NotionalCalculatorResolver CreateResolver()
+        {
+            return new NotionalCalculatorResolver(
+                new INotionalCalculator[]
+                {
+                new FxNotionalCalculator(),
+                new EquityNotionalCalculator(),
+                new BondNotionalCalculator()
+                });
         }
     }
 }

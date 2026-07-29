@@ -48,7 +48,7 @@ var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-app.UseTradingGatewaySerilog();
+app.UseSerilogConfiguration();
 // Enable Swagger
 app.UseSwaggerConfiguration();
 

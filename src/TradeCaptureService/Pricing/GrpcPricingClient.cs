@@ -12,7 +12,7 @@ namespace TradeCaptureService.Pricing
 {
     public sealed class GrpcPricingClient : IPricingClient
     {   
-        private PricingService.Grpc.Pricing.PricingClient pricingClient;
+        private readonly PricingService.Grpc.Pricing.PricingClient pricingClient;
 
         public GrpcPricingClient(PricingService.Grpc.Pricing.PricingClient pricingClient)
         {

@@ -3,8 +3,8 @@ using ReferenceDataService.Domain.Instruments;
 using ReferenceDataService.Grpc.Mapping;
 using Serilog.Context;
 using TradingApp.Shared.Messaging.Correlation;
-using DomainAssetClass =
-    ReferenceDataService.Domain.Instruments.AssetClass;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
 
 using DomainFxDetails =
     ReferenceDataService.Domain.Instruments.FxInstrumentDetails;

@@ -97,6 +97,23 @@ namespace RiskService.Tests
             decision.RiskDecisionId.Should().NotBeEmpty();
         }
 
+        [Theory]
+        [InlineData("AAPL")]
+        [InlineData("GB00TEST1234")]
+        public void Check_WhenMultiAssetSymbolIsAllowed_ShouldApprove(
+            string symbol)
+        {
+            var request = CreateValidRequest() with
+            {
+                Symbol = symbol
+            };
+
+            var decision = riskPolicyEngine.Check(request);
+
+            decision.Approved.Should().BeTrue();
+            decision.ReasonCode.Should().Be(RiskReasonCodes.Approved);
+        }
+
         private RiskCheckRequestModel CreateValidRequest()
         {
             return new RiskCheckRequestModel

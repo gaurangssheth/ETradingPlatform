@@ -16,7 +16,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddPositionDatabase(context.Configuration);
         services.AddApplicationServices();
     })
-    .UsePositionServiceSerilog()
+    .UseSerilogConfiguration()
     .UseNServiceBus(context =>
     {
         return context.ConfigurePoisitionServiceEndpoint();

@@ -1,12 +1,12 @@
 ﻿using ReferenceDataService.Domain.Instruments;
-using DomainAssetClass =
-    ReferenceDataService.Domain.Instruments.AssetClass;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
 
 using DomainBondDetails =
     ReferenceDataService.Domain.Instruments.BondInstrumentDetails;
 
-using DomainDayCountConvention =
-    ReferenceDataService.Domain.Instruments.DayCountConvention;
+using PlatformDayCountConvention =
+    TradingApp.SharedKernel.DayCountConvention;
 
 using DomainEquityDetails =
     ReferenceDataService.Domain.Instruments.EquityInstrumentDetails;
@@ -70,7 +70,8 @@ namespace ReferenceDataService.Grpc.Mapping
                         CouponRate = Convert.ToDouble(bondDetails.CouponRate),
                         MaturityDate = bondDetails.MaturityDate.ToString("yyyy-MM-dd"),
                         ParValue = Convert.ToDouble(bondDetails.ParValue),
-                        DayCountConvention = MapDayCountConvetion(bondDetails.DayCountConvention)
+                        DayCountConvention = MapDayCountConvention(bondDetails.DayCountConvention),
+                        DenominationCurrency = bondDetails.DenominationCurrency.Value
                     };
                     break;
                 default:
@@ -81,25 +82,25 @@ namespace ReferenceDataService.Grpc.Mapping
             return response;
         }
 
-        private static Grpc.AssetClass MapAssetClass(DomainAssetClass assetClass)
+        private static Grpc.AssetClass MapAssetClass(PlatformAssetClass assetClass)
         {
             return assetClass switch
             {
-                DomainAssetClass.Fx => GrpcAssetClass.Fx,
-                DomainAssetClass.Equity => GrpcAssetClass.Equity,
-                DomainAssetClass.FixedIncome => GrpcAssetClass.FixedIncome,
+                PlatformAssetClass.Fx => GrpcAssetClass.Fx,
+                PlatformAssetClass.Equity => GrpcAssetClass.Equity,
+                PlatformAssetClass.FixedIncome => GrpcAssetClass.FixedIncome,
                 _ => GrpcAssetClass.Unspecified
             };
         }
 
-        private static GrpcDayCountConvention MapDayCountConvetion(DomainDayCountConvention dayCountConvention)
+        private static GrpcDayCountConvention MapDayCountConvention(PlatformDayCountConvention dayCountConvention)
         {
             return dayCountConvention switch
             {
-                DomainDayCountConvention.ActualActual => GrpcDayCountConvention.ActualActual,
-                DomainDayCountConvention.Actual360 => GrpcDayCountConvention.Actual360,
-                DomainDayCountConvention.Actual365 => GrpcDayCountConvention.Actual365,
-                DomainDayCountConvention.Thirty360 => GrpcDayCountConvention.Thirty360,
+                PlatformDayCountConvention.ActualActual => GrpcDayCountConvention.ActualActual,
+                PlatformDayCountConvention.Actual360 => GrpcDayCountConvention.Actual360,
+                PlatformDayCountConvention.Actual365 => GrpcDayCountConvention.Actual365,
+                PlatformDayCountConvention.Thirty360 => GrpcDayCountConvention.Thirty360,
                 _ => GrpcDayCountConvention.Unspecified
             };
         }

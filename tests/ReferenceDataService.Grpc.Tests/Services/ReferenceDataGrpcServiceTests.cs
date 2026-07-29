@@ -86,6 +86,7 @@ namespace ReferenceDataService.Grpc.Tests.Services
             response.BondDetails.CouponRate.Should().Be(4.25);
             response.BondDetails.MaturityDate.Should().Be("2035-06-30");
             response.BondDetails.ParValue.Should().Be(100);
+            response.BondDetails.DenominationCurrency.Should().Be("GBP");
 
             response.BondDetails.DayCountConvention
             .Should()

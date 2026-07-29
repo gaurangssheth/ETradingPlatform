@@ -95,5 +95,36 @@ namespace PricingService.Tests
             response.Bid.Should().BeApproximately(1.0849, 0.0000001);
             response.Ask.Should().BeApproximately(1.0851, 0.0000001);
         }
+
+        [Theory]
+        [InlineData("AAPL", 210.00, 210.50, 210.25)]
+        [InlineData("GB00TEST1234", 98.40, 98.50, 98.45)]
+        public async Task GetPrice_WhenMultiAssetSymbolConfigured_ShouldReturnExpectedQuote(
+                        string symbol,
+                        double expectedBid,
+                        double expectedAsk,
+                        double expectedMid)
+        {
+            var service = new PricingGrpcService(
+                NullLogger<PricingGrpcService>.Instance);
+
+            var response = await service.GetPrice(
+                new GetPriceRequest
+                {
+                    Symbol = symbol
+                },
+                TestServerCallContext.Create());
+
+            response.Symbol.Should().Be(symbol);
+
+            response.Bid.Should()
+                .BeApproximately(expectedBid, 0.0000001);
+
+            response.Ask.Should()
+                .BeApproximately(expectedAsk, 0.0000001);
+
+            response.Mid.Should()
+                .BeApproximately(expectedMid, 0.0000001);
+        }
     }
 }

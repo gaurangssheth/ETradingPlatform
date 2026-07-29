@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Calculations;
 using TradeCaptureService.Domain;
 using TradeCaptureService.Infrastructure.UnitOfWork;
 using TradeCaptureService.Pricing;
+using TradeCaptureService.ReferenceData;
 using TradeCaptureService.Services;
 using TradingApp.Contracts.Events;
 using TradingApp.Contracts.Shared;
@@ -16,17 +18,23 @@ namespace TradeCaptureService.Handlers
     {
         private readonly IUnitOfWork unitOfWork;
         private readonly IPricingClient pricingClient;
+        private readonly IReferenceDataClient referenceDataClient;
         private readonly ExecutionPriceCalculator executionPriceCalculator;
+        private readonly NotionalCalculatorResolver notionalCalculatorResolver;
         private readonly ILogger<OrderAcceptedHandler> logger;
 
         public OrderAcceptedHandler(IUnitOfWork unitOfWork,
             IPricingClient pricingClient,
+            IReferenceDataClient referenceDataClient,
             ExecutionPriceCalculator executionPriceCalculator,
+            NotionalCalculatorResolver notionalCalculatorResolver,
             ILogger<OrderAcceptedHandler> logger)
         {
             this.unitOfWork = unitOfWork;
             this.pricingClient = pricingClient;
+            this.referenceDataClient = referenceDataClient;
             this.executionPriceCalculator = executionPriceCalculator;
+            this.notionalCalculatorResolver = notionalCalculatorResolver;
             this.logger = logger;
         }
 
@@ -39,12 +47,25 @@ namespace TradeCaptureService.Handlers
                 return;
             }
 
+            var instrumentReferenceDefinition = await this.referenceDataClient.GetInstrumentAsync(message.Symbol, 
+                message.CorrelationId,
+                context.CancellationToken);
+
+            var instrument = instrumentReferenceDefinition.Instrument;
+
             var quote = await this.pricingClient.GetPriceAsync(message.Symbol,
                 message.CorrelationId,
                 context.CancellationToken);
 
             var executionPrice = executionPriceCalculator.Calculate(message.Side, quote);
-            var notional = message.Quantity * executionPrice;
+
+            var notionalCalculator = notionalCalculatorResolver.Resolve(
+                instrument.AssetClass);
+
+            var notional = notionalCalculator.Calculate(
+                instrumentReferenceDefinition,
+                message.Quantity,
+                executionPrice);
 
             var tradeId = Guid.NewGuid();
             var capturedAt = DateTimeOffset.UtcNow;
@@ -54,12 +75,15 @@ namespace TradeCaptureService.Handlers
                 Id = tradeId,
                 OrderId = message.OrderId,
                 ClientId = message.ClientId,
-                Symbol = message.Symbol,
+                InstrumentId = instrument.InstrumentId,
+                Symbol = instrument.Symbol,
+                AssetClass = instrument.AssetClass,
                 Side = message.Side,
                 OrderType = message.OrderType,
                 Quantity = message.Quantity,
                 Price = executionPrice,
                 Notional = notional,
+                NotionalCurrency = instrumentReferenceDefinition.Details.NotionalCurrency,
                 Status = TradeStatus.Captured,
                 CapturedAt = capturedAt,
                 CorrelationId = message.CorrelationId
@@ -79,17 +103,19 @@ namespace TradeCaptureService.Handlers
             {
                 TradeId = trade.Id,
                 OrderId = trade.OrderId,
+                InstrumentId = trade.InstrumentId,
                 ClientId = trade.ClientId,
                 Symbol = trade.Symbol,
+                AssetClass = trade.AssetClass,
                 Side = trade.Side,
                 Quantity = trade.Quantity,
                 Price = trade.Price,
                 Notional = trade.Notional,
+                NotionalCurrency = trade.NotionalCurrency.Value,
                 Status = trade.Status,
                 CapturedAt = trade.CapturedAt,
-                CorrelationId = trade.CorrelationId
+                CorrelationId = trade.CorrelationId,
             });
-
         }
     }
 }

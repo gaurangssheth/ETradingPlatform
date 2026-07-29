@@ -1,4 +1,8 @@
 ﻿using ReferenceDataService.Domain.Instruments;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
+using PlatformDayCountConvention =
+    TradingApp.SharedKernel.DayCountConvention;
 
 namespace ReferenceDataService.Infrastructure.Repositories
 {
@@ -8,9 +12,9 @@ namespace ReferenceDataService.Infrastructure.Repositories
 
         public InMemoryInstrumentRepository()
         {
-            var eurUsdId = Guid.NewGuid();
-            var appleId = Guid.NewGuid();
-            var bondId = Guid.NewGuid();
+            var eurUsdId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var appleId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+            var bondId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
             instruments = new Dictionary<string, InstrumentDefinition>(
                 StringComparer.OrdinalIgnoreCase)
@@ -19,7 +23,7 @@ namespace ReferenceDataService.Infrastructure.Repositories
                         new Instrument(
                             eurUsdId,
                             "EURUSD",
-                            AssetClass.Fx,
+                            PlatformAssetClass.Fx,
                             isTradable: true
                         ),
                         details: new FxInstrumentDetails(
@@ -33,7 +37,7 @@ namespace ReferenceDataService.Infrastructure.Repositories
                         new Instrument(
                             appleId,
                             "AAPL",
-                            AssetClass.Equity,
+                            PlatformAssetClass.Equity,
                             isTradable: true
                         ),
                         details: new EquityInstrumentDetails(
@@ -46,17 +50,18 @@ namespace ReferenceDataService.Infrastructure.Repositories
                         new Instrument(
                             bondId,
                             "GB00TEST1234",
-                            AssetClass.FixedIncome,
+                            PlatformAssetClass.FixedIncome,
                             isTradable: true
                         ),
                         details: new BondInstrumentDetails(
                             bondId,
                             isin: "GB00TEST1234",
                             issuer: "UK Government",
+                            denominationCurrency: "GBP",
                             couponRate: 4.25m,
                             maturityDate: new DateOnly(2035, 6, 30),
                             parValue: 100m,
-                            dayCountConvention: DayCountConvention.ActualActual
+                            dayCountConvention: PlatformDayCountConvention.ActualActual
                         )
                     )
             };

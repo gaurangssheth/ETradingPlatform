@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.SharedKernel;
 
 namespace ReferenceDataService.Domain.Tests.Instruments
 {
@@ -20,6 +21,7 @@ namespace ReferenceDataService.Domain.Tests.Instruments
             instrumentId,
             isin: "GB00TEST1234",
             issuer: "UK Government",
+            denominationCurrency: "GBP",
             couponRate: 4.25m,
             maturityDate: maturityDate,
             parValue: 100m,
@@ -28,6 +30,7 @@ namespace ReferenceDataService.Domain.Tests.Instruments
             details.InstrumentId.Should().Be(instrumentId);
             details.Isin.Should().Be("GB00TEST1234");
             details.Issuer.Should().Be("UK Government");
+            details.DenominationCurrency.Should().Be(new CurrencyCode("GBP"));
             details.CouponRate.Should().Be(4.25m);
             details.MaturityDate.Should().Be(maturityDate);
             details.ParValue.Should().Be(100m);

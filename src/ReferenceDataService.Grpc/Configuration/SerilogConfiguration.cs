@@ -4,7 +4,7 @@ namespace ReferenceDataService.Grpc.Configuration;
 
 public static class SerilogConfiguration
 {
-    public static WebApplicationBuilder AddReferenceDataServiceSerilog(
+    public static WebApplicationBuilder AddSerilogConfiguration(
         this WebApplicationBuilder builder)
     {
         builder.Configuration.AddJsonFile(

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TradingApp.Contracts.Shared;
+using TradingApp.SharedKernel;
 
 namespace TradingApp.Contracts.Events
 {
@@ -30,5 +31,11 @@ namespace TradingApp.Contracts.Events
         public DateTimeOffset CapturedAt { get; set; }
 
         public string CorrelationId { get; set; } = null!;
+
+        public Guid InstrumentId { get; set; }
+
+        public AssetClass AssetClass { get; set; }
+
+        public string NotionalCurrency { get; set; } = null!;
     }
 }

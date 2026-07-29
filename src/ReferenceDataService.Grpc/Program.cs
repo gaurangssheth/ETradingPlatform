@@ -1,10 +1,15 @@
 
 using ReferenceDataService.Domain.Instruments;
+using ReferenceDataService.Grpc.Configuration;
 using ReferenceDataService.Grpc.Mapping;
 using ReferenceDataService.Grpc.Services;
 using ReferenceDataService.Infrastructure.Repositories;
 
+Console.Title = "ETrading - ReferenceDataService.Grpc";
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSerilogConfiguration();
 
 // Add services to the container.
 builder.Services.AddGrpc();

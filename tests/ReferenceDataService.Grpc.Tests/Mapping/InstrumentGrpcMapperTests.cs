@@ -16,11 +16,11 @@ using DomainEquityDetails =
 using DomainBondDetails =
     ReferenceDataService.Domain.Instruments.BondInstrumentDetails;
 
-using DomainAssetClass =
-    ReferenceDataService.Domain.Instruments.AssetClass;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
 
-using DomainDayCountConvention =
-    ReferenceDataService.Domain.Instruments.DayCountConvention;
+using PlatformDayCountConvention =
+    TradingApp.SharedKernel.DayCountConvention;
 
 using GrpcAssetClass =
     ReferenceDataService.Grpc.AssetClass;
@@ -40,7 +40,7 @@ namespace ReferenceDataService.Grpc.Tests.Mapping
                 new Instrument(
                     instrumentId,
                     "EURUSD",
-                    DomainAssetClass.Fx,
+                    PlatformAssetClass.Fx,
                     true),
                 new DomainFxDetails(
                     instrumentId,
@@ -83,7 +83,7 @@ namespace ReferenceDataService.Grpc.Tests.Mapping
                 new Instrument(
                     instrumentId,
                     "AAPL",
-                    DomainAssetClass.Equity,
+                    PlatformAssetClass.Equity,
                     true),
                 new DomainEquityDetails(
                     instrumentId,
@@ -119,16 +119,17 @@ namespace ReferenceDataService.Grpc.Tests.Mapping
                 new Instrument(
                     instrumentId,
                     "GB00TEST1234",
-                    DomainAssetClass.FixedIncome,
+                    PlatformAssetClass.FixedIncome,
                     true),
                 new DomainBondDetails(
                     instrumentId,
                     isin: "GB00TEST1234",
                     issuer: "UK Government",
+                    denominationCurrency: "GBP",
                     couponRate: 4.25m,
                     maturityDate: new DateOnly(2035, 6, 30),
                     parValue: 100m,
-                    dayCountConvention: DomainDayCountConvention.ActualActual));
+                    dayCountConvention: PlatformDayCountConvention.ActualActual));
 
             var mapper = new InstrumentGrpcMapper();
 
@@ -152,6 +153,10 @@ namespace ReferenceDataService.Grpc.Tests.Mapping
             response.BondDetails.DayCountConvention.Should()
                 .Be(Grpc.DayCountConvention
                     .ActualActual);
+
+            response.BondDetails.DenominationCurrency
+                .Should()
+                .Be("GBP");
 
             response.FxDetails.Should().BeNull();
             response.EquityDetails.Should().BeNull();
@@ -177,7 +182,7 @@ namespace ReferenceDataService.Grpc.Tests.Mapping
                 new Instrument(
                     instrumentId,
                     "TEST",
-                    DomainAssetClass.Equity,
+                    PlatformAssetClass.Equity,
                     true),
                 new UnsupportedInstrumentDetails(instrumentId));
 

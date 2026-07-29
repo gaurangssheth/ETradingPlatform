@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
 
 namespace ReferenceDataService.Infrastructure.Tests.Repositories
 {
@@ -20,7 +22,7 @@ namespace ReferenceDataService.Infrastructure.Tests.Repositories
 
             definition.Should().NotBeNull();
             definition!.Instrument.Symbol.Should().Be("EURUSD");
-            definition.Instrument.AssetClass.Should().Be(AssetClass.Fx);
+            definition.Instrument.AssetClass.Should().Be(PlatformAssetClass.Fx);
             definition.Details.Should().BeOfType<FxInstrumentDetails>();
         }
 
@@ -32,7 +34,7 @@ namespace ReferenceDataService.Infrastructure.Tests.Repositories
             var definition = repository.GetBySymbol("AAPL");
 
             definition.Should().NotBeNull();
-            definition!.Instrument.AssetClass.Should().Be(AssetClass.Equity);
+            definition!.Instrument.AssetClass.Should().Be(PlatformAssetClass.Equity);
             definition.Details.Should().BeOfType<EquityInstrumentDetails>();
         }
 
@@ -44,7 +46,7 @@ namespace ReferenceDataService.Infrastructure.Tests.Repositories
             var definition = repository.GetBySymbol("GB00TEST1234");
 
             definition.Should().NotBeNull();
-            definition!.Instrument.AssetClass.Should().Be(AssetClass.FixedIncome);
+            definition!.Instrument.AssetClass.Should().Be(PlatformAssetClass.FixedIncome);
             definition.Details.Should().BeOfType<BondInstrumentDetails>();
         }
 

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>TradeCaptureService_tests</RootNamespace>
+    <RootNamespace>TradeCaptureService.Tests</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TradeCaptureService\TradeCaptureService.csproj" />
+    <ProjectReference Include="..\..\src\TradingApp.SharedKernel\TradingApp.SharedKernel.csproj" />
   </ItemGroup>
 
   <ItemGroup>

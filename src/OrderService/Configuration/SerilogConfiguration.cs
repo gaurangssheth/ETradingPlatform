@@ -10,7 +10,7 @@ namespace OrderService.Configuration
 {
     public static class SerilogConfiguration
     {
-        public static IHostBuilder UseOrderServiceSerilog(this IHostBuilder hostBuilder)
+        public static IHostBuilder UseSerilogConfiguration(this IHostBuilder hostBuilder)
         {
             return hostBuilder.UseSerilog((context, services, configuration) =>
             {

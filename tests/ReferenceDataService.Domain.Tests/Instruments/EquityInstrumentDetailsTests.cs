@@ -1,11 +1,11 @@
 ﻿using FluentAssertions;
-using ReferenceDataService.Domain.Common;
 using ReferenceDataService.Domain.Instruments;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.SharedKernel;
 
 namespace ReferenceDataService.Domain.Tests.Instruments
 {

@@ -1,10 +1,10 @@
 ﻿using FluentAssertions;
-using ReferenceDataService.Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.SharedKernel;
 
 namespace ReferenceDataService.Domain.Tests.Common
 {
@@ -26,6 +26,30 @@ namespace ReferenceDataService.Domain.Tests.Common
             var second = new CurrencyCode("gbp");
 
             first.Should().Be(second);
+        }
+
+        [Theory]
+        [InlineData("US")]
+        [InlineData("US12")]
+        [InlineData("POUNDS")]
+        public void Create_WithInvalidCode_ShouldThrow(string value)
+        {
+            var act = () => new CurrencyCode(value);
+
+            act.Should()
+                .Throw<ArgumentException>()
+                .WithParameterName(nameof(value))
+                .WithMessage("*exactly three letters*");
+        }
+
+        [Fact]
+        public void EqualCurrencyCodes_ShouldHaveValueEquality()
+        {
+            var first = new CurrencyCode("GBP");
+            var second = new CurrencyCode("GBP");
+
+            first.Should().Be(second);
+            (first == second).Should().BeTrue();
         }
     }
 }

@@ -6,6 +6,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using PlatformAssetClass =
+    TradingApp.SharedKernel.AssetClass;
 
 namespace ReferenceDataService.Domain.Tests.Instruments
 {
@@ -19,13 +21,13 @@ namespace ReferenceDataService.Domain.Tests.Instruments
             var instument = new Instrument(
                 instrumentId,
                 symbol: "EURUSD",
-                assetClass: AssetClass.Fx,
+                assetClass: PlatformAssetClass.Fx,
                 isTradable: true
             );
 
             instument.InstrumentId.Should().Be(instrumentId);
             instument.Symbol.Should().Be("EURUSD");
-            instument.AssetClass.Should().Be(AssetClass.Fx);
+            instument.AssetClass.Should().Be(PlatformAssetClass.Fx);
             instument.IsTradable.Should().BeTrue();
         }
     }

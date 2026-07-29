@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TradingApp.Contracts\TradingApp.Contracts.csproj" />
+    <ProjectReference Include="..\TradingApp.SharedKernel\TradingApp.SharedKernel.csproj" />
     <ProjectReference Include="..\TradingApp.Shared\TradingApp.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -39,5 +40,7 @@
   <ItemGroup>
     <Protobuf Include="Protos\greet.proto" GrpcServices="Client" />
     <Protobuf Include="Protos\pricing.proto" GrpcServices="Client" />
+	  <Protobuf Include="Protos\reference_data.proto" GrpcServices="Client" />
+    <Protobuf Include="Protos\reference_data.proto" GrpcServices="Client" />
   </ItemGroup>
 </Project>

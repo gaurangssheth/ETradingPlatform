@@ -4,7 +4,7 @@ namespace RiskService.Grpc.Configuration;
 
 public static class SerilogConfiguration
 {
-    public static WebApplicationBuilder AddPricingServiceSerilog(
+    public static WebApplicationBuilder AddSerilogConfiguration(
         this WebApplicationBuilder builder)
     {
         builder.Configuration.AddJsonFile(
