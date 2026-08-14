@@ -57,7 +57,7 @@ namespace TradeCaptureService.Handlers
                 message.CorrelationId,
                 context.CancellationToken);
 
-            var executionPrice = executionPriceCalculator.Calculate(message.Side, quote);
+            var executionPrice = executionPriceCalculator.GetExecutionPrice(message.Side, quote);
 
             var notionalCalculator = notionalCalculatorResolver.Resolve(
                 instrument.AssetClass);

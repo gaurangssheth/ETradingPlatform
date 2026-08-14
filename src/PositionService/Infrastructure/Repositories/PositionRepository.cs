@@ -53,9 +53,9 @@ namespace PositionService.Infrastructure.Repositories
             }
         }
 
-        public async Task<Position?> GetByClientAndSymbolAsync(string clientId, string symbol, CancellationToken cancellationToken = default)
+        public async Task<Position?> GetByClientAndInstrumentIdAsync(string clientId, Guid instrumentId, CancellationToken cancellationToken = default)
         {
-            return await context.Positions.SingleOrDefaultAsync(p => p.ClientId == clientId && p.Symbol == symbol, cancellationToken);
+            return await context.Positions.SingleOrDefaultAsync(p => p.ClientId == clientId && p.InstrumentId == instrumentId, cancellationToken);
         }
     }
 }

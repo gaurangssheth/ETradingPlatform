@@ -10,9 +10,12 @@ namespace PositionService.Domain
     {
         public Guid Id { get; set; }
         public string ClientId { get; set; } = null!;
+        public Guid InstrumentId { get; set; }
+        public AssetClass AssetClass { get; set; }
         public string Symbol { get; set; } = null!;
         public decimal NetQuantity { get; set; }
         public decimal AveragePrice { get; set; }
+        public CurrencyCode PnlCurrency { get; set; }
         public decimal RealisedPnl { get; set; }
 
         // Placeholder for Phase 2B.
@@ -22,5 +25,7 @@ namespace PositionService.Domain
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public ICollection<PositionMovement> Movements { get; set; } = new List<PositionMovement>();
+
+
     }
 }

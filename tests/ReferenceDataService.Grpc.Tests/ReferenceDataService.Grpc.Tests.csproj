@@ -20,7 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ReferenceDataService.Domain\ReferenceDataService.Domain.csproj" />
     <ProjectReference Include="..\..\src\ReferenceDataService.Grpc\ReferenceDataService.Grpc.csproj" />
-    <ProjectReference Include="..\OrderService.Tests\OrderService.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>

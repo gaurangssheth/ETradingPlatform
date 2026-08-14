@@ -72,6 +72,15 @@ To add migration PositionService
 Add-Migration InitialPositionSchema -Project PositionService -StartupProject PositionService -Context PositionDbContext -OutputDir Infrastructure\Persistence\Migrations
 Update-Database -Project PositionService -StartupProject PositionService -Context PositionDbContext
 
+To Get list of migrations
+Get-Migration -Project PositionService -StartupProject PositionService -Context PositionDbContext
+
+To make Zero migration means removal all
+Update-Database 0 -Project PositionService -StartupProject PositionService -Context PositionDbContext
+
+To remove migration
+Remove-Migration -Project PositionService -StartupProject PositionService -Context PositionDbContext
+
 PRINT 'Stopping services before running this script is recommended.';
 
 USE TradingApp_PositionDb;
@@ -89,3 +98,5 @@ PRINT 'Clearing OrderService data...';
 DELETE FROM dbo.Orders;
 
 PRINT 'Phase 1 test data cleared.';
+
+

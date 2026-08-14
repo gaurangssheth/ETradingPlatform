@@ -3,7 +3,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PositionService.Domain;
 using PositionService.Infrastructure.Persistence;
+using PositionService.Tests.Infrastructure.Persistence;
 using TradingApp.Contracts.Shared;
+using TradingApp.SharedKernel;
 
 namespace PositionService.Tests;
 
@@ -19,18 +21,22 @@ public class PositionEfRelationshipTests
             .UseSqlite(connection)
             .Options;
 
-        await using var dbContext = new PositionDbContext(options);
+        await using var dbContext = new SqlitePositionDbContext(options);
         await dbContext.Database.EnsureCreatedAsync();
 
         var positionId = Guid.NewGuid();
+        var instrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         var position = new Position
         {
             Id = positionId,
             ClientId = "client-001",
+            InstrumentId = instrumentId,
             Symbol = "EURUSD",
+            AssetClass = AssetClass.Fx,
             NetQuantity = 60m,
             AveragePrice = 1.0800m,
+            PnlCurrency = new CurrencyCode("USD"),
             RealisedPnl = 0.4000m,
             UnrealisedPnl = 0m,
             CorrelationId = "relationship-test",
@@ -45,8 +51,10 @@ public class PositionEfRelationshipTests
             TradeId = Guid.NewGuid(),
             OrderId = Guid.NewGuid(),
             ClientId = "client-001",
+            InstrumentId = instrumentId,
             Symbol = "EURUSD",
             Side = OrderSide.Buy,
+            AssetClass = AssetClass.Fx,
             Quantity = 100m,
             SignedQuantity = 100m,
             Price = 1.0800m,
@@ -54,7 +62,10 @@ public class PositionEfRelationshipTests
             PreviousAveragePrice = 0m,
             NewNetQuantity = 100m,
             NewAveragePrice = 1.0800m,
-            RealisedPnl = 0m,
+            PreviousRealisedPnl = 0m,
+            RealisedPnlChange = 0m,
+            NewRealisedPnl = 0m,
+            PnlCurrency = new CurrencyCode("USD"),
             CorrelationId = "relationship-test-001",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -66,8 +77,10 @@ public class PositionEfRelationshipTests
             TradeId = Guid.NewGuid(),
             OrderId = Guid.NewGuid(),
             ClientId = "client-001",
+            InstrumentId = instrumentId,
             Symbol = "EURUSD",
             Side = OrderSide.Sell,
+            AssetClass = AssetClass.Fx,
             Quantity = 40m,
             SignedQuantity = -40m,
             Price = 1.0900m,
@@ -75,7 +88,10 @@ public class PositionEfRelationshipTests
             PreviousAveragePrice = 1.0800m,
             NewNetQuantity = 60m,
             NewAveragePrice = 1.0800m,
-            RealisedPnl = 0.4000m,
+            PreviousRealisedPnl = 0m,
+            RealisedPnlChange = 0.4000m,
+            NewRealisedPnl = 0.4000m,
+            PnlCurrency = new CurrencyCode("USD"),
             CorrelationId = "relationship-test-002",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -97,7 +113,7 @@ public class PositionEfRelationshipTests
             .Contain(new[] { movement1.TradeId, movement2.TradeId });
 
         loadedPosition.Movements
-            .Sum(x => x.RealisedPnl)
+            .Sum(x => x.RealisedPnlChange)
             .Should()
             .Be(0.4000m);
     }
@@ -112,17 +128,20 @@ public class PositionEfRelationshipTests
             .UseSqlite(connection)
             .Options;
 
-        await using var dbContext = new PositionDbContext(options);
+        await using var dbContext = new SqlitePositionDbContext(options);
         await dbContext.Database.EnsureCreatedAsync();
 
         var movementWithoutPosition = new PositionMovement
         {
             Id = Guid.NewGuid(),
+            // Deliberately invalid: there is no Position with this Id.
             PositionId = Guid.NewGuid(),
             TradeId = Guid.NewGuid(),
             OrderId = Guid.NewGuid(),
             ClientId = "client-001",
+            InstrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             Symbol = "EURUSD",
+            AssetClass = AssetClass.Fx,
             Side = OrderSide.Buy,
             Quantity = 100m,
             SignedQuantity = 100m,
@@ -131,7 +150,10 @@ public class PositionEfRelationshipTests
             PreviousAveragePrice = 0m,
             NewNetQuantity = 100m,
             NewAveragePrice = 1.0800m,
-            RealisedPnl = 0m,
+            PreviousRealisedPnl = 0m,
+            RealisedPnlChange = 0m,
+            NewRealisedPnl = 0m,
+            PnlCurrency = new CurrencyCode("USD"),
             CorrelationId = "relationship-test-invalid",
             CreatedAt = DateTimeOffset.UtcNow
         };

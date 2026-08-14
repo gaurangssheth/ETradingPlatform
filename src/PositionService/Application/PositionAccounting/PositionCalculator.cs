@@ -2,7 +2,15 @@
 {
     public sealed class PositionCalculator
     {
+        private readonly RealisedPnlCalculatorResolver realisedPnlCalculatorResolver;
+
+        public PositionCalculator(RealisedPnlCalculatorResolver realisedPnlCalculatorResolver)
+        {
+            this.realisedPnlCalculatorResolver = realisedPnlCalculatorResolver;
+        }
+
         public PositionCalculationResult ApplyTrade(
+            AssetClass assetClass,
             decimal existingNetQuantity,
             decimal existingAveragePrice,
             decimal tradeSignedQuantity,
@@ -13,6 +21,8 @@
                 throw new ArgumentException("Trade quantity cannot be zero.", nameof(tradeSignedQuantity));
             }
 
+            var realisedPnlCalculator = realisedPnlCalculatorResolver.Resolve(assetClass);
+
             if (existingNetQuantity == 0)
             {
                 return new PositionCalculationResult
@@ -22,7 +32,7 @@
                     RealisedPnl = 0m
                 };
             }
-
+                        
             var sameDirection =
                 Math.Sign(existingNetQuantity) == Math.Sign(tradeSignedQuantity);
 
@@ -49,9 +59,13 @@
             var tradeAbs = Math.Abs(tradeSignedQuantity);
             var closedQuantity = Math.Min(existingAbs, tradeAbs);
 
-            var realisedPnl = existingNetQuantity > 0
-                ? closedQuantity * (tradePrice - existingAveragePrice)
-                : closedQuantity * (existingAveragePrice - tradePrice);
+            var priceDifference = existingNetQuantity > 0
+                ? tradePrice - existingAveragePrice
+                : existingAveragePrice - tradePrice;
+
+            var realisedPnl = realisedPnlCalculator.Calculate(
+                closedQuantity,
+                priceDifference);
 
             var resultingNetQuantity = existingNetQuantity + tradeSignedQuantity;
 

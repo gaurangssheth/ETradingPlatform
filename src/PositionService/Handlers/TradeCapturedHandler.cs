@@ -43,8 +43,8 @@ namespace PositionService.Handlers
             var signedQuantity = message.Side == OrderSide.Buy ? 
                 message.Quantity : -message.Quantity;
 
-            var position = await unitOfWork.Positions.GetByClientAndSymbolAsync(
-                message.ClientId, message.Symbol, context.CancellationToken);
+            var position = await unitOfWork.Positions.GetByClientAndInstrumentIdAsync(
+                message.ClientId, message.InstrumentId, context.CancellationToken);
 
             if (position is null)
             {
@@ -52,6 +52,8 @@ namespace PositionService.Handlers
                 {
                     Id = Guid.NewGuid(),
                     ClientId = message.ClientId,
+                    InstrumentId = message.InstrumentId,
+                    AssetClass = message.AssetClass,
                     Symbol = message.Symbol,
 
                     // Important:
@@ -61,6 +63,7 @@ namespace PositionService.Handlers
                     AveragePrice = 0m,
                     RealisedPnl = 0m,
                     UnrealisedPnl = 0m,
+                    PnlCurrency = new CurrencyCode(message.NotionalCurrency),
 
                     CorrelationId = message.CorrelationId,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -69,10 +72,24 @@ namespace PositionService.Handlers
                 await unitOfWork.Positions.AddAsync(position, context.CancellationToken);
             }
 
+            if (position.AssetClass != message.AssetClass)
+            {
+                throw new InvalidOperationException(
+                    $"Asset class mismatch for instrument '{message.InstrumentId}'.");
+            }
+
+            if (position.PnlCurrency != new CurrencyCode(message.NotionalCurrency))
+            {
+                throw new InvalidOperationException(
+                    $"P&L currency mismatch for instrument '{message.InstrumentId}'.");
+            }
+
             var previousNetQuantity = position.NetQuantity;
             var previousAveragePrice = position.AveragePrice;
+            var previousRealisedPnl = position.RealisedPnl;
 
             var calculation = positionCalculator.ApplyTrade(
+                position.AssetClass,
                 position.NetQuantity,
                 position.AveragePrice,
                 signedQuantity,
@@ -91,9 +108,11 @@ namespace PositionService.Handlers
                 PositionId = position.Id,
                 TradeId = message.TradeId,
                 ClientId = message.ClientId,
+                InstrumentId = position.InstrumentId,
                 OrderId = message.OrderId,
                 Symbol = message.Symbol,
                 Side = message.Side,
+                AssetClass = position.AssetClass,
                 Quantity = message.Quantity,
                 SignedQuantity = signedQuantity,
                 Price = message.Price,
@@ -101,7 +120,10 @@ namespace PositionService.Handlers
                 PreviousAveragePrice = previousAveragePrice,
                 NewNetQuantity = position.NetQuantity,
                 NewAveragePrice = position.AveragePrice,
-                RealisedPnl = position.RealisedPnl,
+                PreviousRealisedPnl = previousRealisedPnl,
+                RealisedPnlChange = calculation.RealisedPnl,
+                NewRealisedPnl = position.RealisedPnl,
+                PnlCurrency = position.PnlCurrency,
                 CorrelationId = message.CorrelationId,
                 Position = position,
                 CreatedAt = DateTimeOffset.UtcNow
@@ -147,9 +169,12 @@ namespace PositionService.Handlers
             {
                 PositionId = position.Id,
                 ClientId = position.ClientId,
+                InstrumentId = position.InstrumentId,
                 Symbol = position.Symbol,
+                AssetClass = position.AssetClass,
                 NetQuantity = position.NetQuantity,
                 AveragePrice = position.AveragePrice,
+                PnlCurrency = position.PnlCurrency.Value,
                 RealisedPnl = position.RealisedPnl,
                 UnrealisedPnl = position.UnrealisedPnl,
                 CorrelationId = position.CorrelationId

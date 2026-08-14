@@ -25,7 +25,7 @@ namespace TradeCaptureService.Tests
                 Mid = 1.0850m
             };
 
-            var result = calculator.Calculate(OrderSide.Buy, quote);
+            var result = calculator.GetExecutionPrice(OrderSide.Buy, quote);
 
             result.Should().Be(1.0851m);
         }
@@ -43,7 +43,7 @@ namespace TradeCaptureService.Tests
                 Mid = 1.0850m
             };
 
-            var result = calculator.Calculate(OrderSide.Sell, quote);
+            var result = calculator.GetExecutionPrice(OrderSide.Sell, quote);
 
             result.Should().Be(1.0849m);
         }

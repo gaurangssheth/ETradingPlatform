@@ -12,6 +12,10 @@ namespace PositionService.Configuration
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
+            services.AddSingleton<IRealisedPnlCalculator, FxRealisedPnlCalculator>();
+            services.AddSingleton<IRealisedPnlCalculator, EquityRealisedPnlCalculator>();
+            services.AddSingleton<IRealisedPnlCalculator, BondRealisedPnlCalculator>();
+            services.AddSingleton<RealisedPnlCalculatorResolver>();
             services.AddSingleton<PositionCalculator>();
 
             return services;

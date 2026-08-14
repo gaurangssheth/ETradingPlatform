@@ -10,7 +10,7 @@ namespace TradeCaptureService.Services
 {
     public sealed class ExecutionPriceCalculator
     {
-        public decimal Calculate(OrderSide side, PriceQuote quote)
+        public decimal GetExecutionPrice(OrderSide side, PriceQuote quote)
         {
             return side switch
             {

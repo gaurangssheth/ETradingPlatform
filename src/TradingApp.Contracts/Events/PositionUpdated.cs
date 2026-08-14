@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TradingApp.Contracts.Shared;
+using TradingApp.SharedKernel;
 
 namespace TradingApp.Contracts.Events
 {
@@ -12,6 +13,12 @@ namespace TradingApp.Contracts.Events
         public Guid PositionId { get; set; }
 
         public string ClientId { get; set; } = null!;
+
+        public Guid InstrumentId { get; init; }
+
+        public AssetClass AssetClass { get; init; }
+
+        public string PnlCurrency { get; init; } = string.Empty;
 
         public string Symbol { get; set; } = null!;
 

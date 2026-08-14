@@ -12,15 +12,15 @@ using PositionService.Infrastructure.Persistence;
 namespace PositionService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PositionDbContext))]
-    [Migration("20260619212253_AddPositionAccountingAndMovements")]
-    partial class AddPositionAccountingAndMovements
+    [Migration("20260813092402_InitialPositionSchema")]
+    partial class InitialPositionSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.28")
+                .HasAnnotation("ProductVersion", "8.0.30")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -30,6 +30,12 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AssetClass")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<decimal>("AveragePrice")
                         .HasPrecision(18, 8)
@@ -48,9 +54,19 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid>("InstrumentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("NetQuantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("PnlCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
 
                     b.Property<decimal>("RealisedPnl")
                         .HasPrecision(18, 8)
@@ -70,10 +86,17 @@ namespace PositionService.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClientId", "Symbol")
+                    b.HasIndex("ClientId", "InstrumentId")
                         .IsUnique();
 
-                    b.ToTable("Positions", (string)null);
+                    b.ToTable("Positions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Positions_AssetClass", "[AssetClass] COLLATE Latin1_General_100_BIN2 IN ('Fx', 'Equity', 'FixedIncome')");
+
+                            t.HasCheckConstraint("CK_Positions_InstrumentId_NotEmpty", "[InstrumentId] <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_Positions_PnlCurrency", "LEN([PnlCurrency]) = 3 AND [PnlCurrency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%'");
+                        });
                 });
 
             modelBuilder.Entity("PositionService.Domain.PositionMovement", b =>
@@ -82,10 +105,16 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ClientId")
+                    b.Property<string>("AssetClass")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("CorrelationId")
                         .IsRequired()
@@ -95,6 +124,9 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid>("InstrumentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("NewAveragePrice")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
@@ -103,8 +135,19 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("NewRealisedPnl")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PnlCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
 
                     b.Property<Guid>("PositionId")
                         .HasColumnType("uniqueidentifier");
@@ -117,6 +160,10 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("PreviousRealisedPnl")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
@@ -125,7 +172,7 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<decimal>("RealisedPnl")
+                    b.Property<decimal>("RealisedPnlChange")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
 
@@ -140,7 +187,8 @@ namespace PositionService.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Symbol")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<Guid>("TradeId")
                         .HasColumnType("uniqueidentifier");
@@ -152,9 +200,16 @@ namespace PositionService.Infrastructure.Persistence.Migrations
                     b.HasIndex("TradeId")
                         .IsUnique();
 
-                    b.HasIndex("ClientId", "Symbol");
+                    b.HasIndex("ClientId", "InstrumentId");
 
-                    b.ToTable("PositionMovements", (string)null);
+                    b.ToTable("PositionMovements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PositionMovements_AssetClass", "[AssetClass] COLLATE Latin1_General_100_BIN2 IN ('Fx', 'Equity', 'FixedIncome')");
+
+                            t.HasCheckConstraint("CK_PositionMovements_InstrumentId_NotEmpty", "[InstrumentId] <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_PositionMovements_PnlCurrency", "LEN([PnlCurrency]) = 3 AND [PnlCurrency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%'");
+                        });
                 });
 
             modelBuilder.Entity("PositionService.Domain.ProcessedTrade", b =>

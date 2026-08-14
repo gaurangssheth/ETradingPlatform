@@ -17,9 +17,13 @@ namespace PositionService.Domain
 
         public Guid OrderId { get; set; }
 
+        public Guid InstrumentId { get; set; }
+
         public string ClientId { get; set; } = null!;
 
         public string Symbol { get; set; } = null!;
+
+        public AssetClass AssetClass { get; set; }
 
         public OrderSide Side { get; set; }
 
@@ -37,7 +41,13 @@ namespace PositionService.Domain
 
         public decimal NewAveragePrice { get; set; }
 
-        public decimal RealisedPnl { get; set; }
+        public CurrencyCode PnlCurrency { get; set; }
+
+        public decimal PreviousRealisedPnl { get; set; }
+
+        public decimal RealisedPnlChange { get; set; }
+
+        public decimal NewRealisedPnl { get; set; }
 
         public string CorrelationId { get; set; } = null!;
 
