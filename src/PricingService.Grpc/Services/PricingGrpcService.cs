@@ -1,5 +1,7 @@
 ﻿using Grpc.Core;
+using PricingService.Grpc.MarketData;
 using Serilog.Context;
+using TradingApp.MarketData.Contracts;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Messaging.Correlation;
 
@@ -7,28 +9,12 @@ namespace PricingService.Grpc.Services
 {
     public class PricingGrpcService : Pricing.PricingBase
     {
+        private readonly MarketQuoteCache marketQuoteCache;
         private ILogger<PricingGrpcService> logger;
 
-        private static readonly IReadOnlyDictionary<string, double> MidPrices = new Dictionary<string, double>
+        public PricingGrpcService(MarketQuoteCache marketQuoteCache, ILogger<PricingGrpcService> logger)
         {
-            ["EURUSD"] = 1.0850,
-            ["GBPUSD"] = 1.2700,
-            ["USDJPY"] = 157.50,
-            ["AAPL"] = 210.25,
-            ["GB00TEST1234"] = 98.45
-        };
-
-        private static readonly IReadOnlyDictionary<string, double> Spreads = new Dictionary<string, double>
-        {
-            ["EURUSD"] = 0.0002,
-            ["GBPUSD"] = 0.0003,
-            ["USDJPY"] = 0.02,
-            ["AAPL"] = 0.50,
-            ["GB00TEST1234"] = 0.10
-        };
-
-        public PricingGrpcService(ILogger<PricingGrpcService> logger)
-        {
+            this.marketQuoteCache = marketQuoteCache;
             this.logger = logger;
         }
 
@@ -52,37 +38,17 @@ namespace PricingService.Grpc.Services
                         ));
                 }
 
-                if (!MidPrices.TryGetValue(symbol, out var mid))
+                if (!this.marketQuoteCache.TryGet(symbol, out var priceTick))
                 {
                     throw new RpcException(new Status(
-                        StatusCode.NotFound,
-                        $"No price configured for symbol {symbol}."
+                        StatusCode.Unavailable,
+                        $"No market data available for symbol {symbol}."
                     ));
                 }
 
-                if (!Spreads.TryGetValue(symbol, out var spread))
-                {
-                    throw new RpcException(new Status(
-                        StatusCode.NotFound,
-                        $"No spread configured for symbol {symbol}."
-                    ));
-                }
-
-                //var mid = symbol switch
-                //{
-                //    "EURUSD" => 1.0850,
-                //    "GBPUSD" => 1.2700,
-                //    "USDJPY" => 157.50,
-                //    _ => throw new RpcException(new Status(
-                //        StatusCode.NotFound,
-                //        $"No price configured for {symbol}."
-                //        ))
-
-                //};
-
-                //var spread = symbol == "USDJPY" ? 0.02 : 0.0002;
-                var bid = mid - spread / 2;
-                var ask = mid + spread / 2;
+                var bid = (double)priceTick.Bid;
+                var ask = (double)priceTick.Ask;
+                var mid = (bid + ask) / 2;
 
                 var response = new GetPriceResponse
                 {

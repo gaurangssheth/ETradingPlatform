@@ -2,12 +2,14 @@
 using Grpc.Core;
 using Microsoft.Extensions.Logging.Abstractions;
 using PricingService.Grpc;
+using PricingService.Grpc.MarketData;
 using PricingService.Grpc.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.MarketData.Contracts;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Messaging.Correlation;
 
@@ -18,7 +20,18 @@ namespace PricingService.Tests
         [Fact]
         public async Task GetPrice_Should_Return_EurUsd_Price()
         {
-            var service = new PricingGrpcService(NullLogger<PricingGrpcService>.Instance);
+            var marketQuoteCache = new MarketQuoteCache();
+
+            marketQuoteCache.Update(new PriceTick
+            (
+                "EURUSD",
+                1.0849m,
+                1.0851m,
+                DateTimeOffset.UtcNow
+            ));
+
+
+            var service = new PricingGrpcService(marketQuoteCache, NullLogger<PricingGrpcService>.Instance);
 
             var response = await service.GetPrice(new Grpc.GetPriceRequest
             {
@@ -35,7 +48,17 @@ namespace PricingService.Tests
         [Fact]
         public async Task GetPrice_Should_Normalise_Symbol()
         {
+            var marketQuoteCache = new MarketQuoteCache();
+
+            marketQuoteCache.Update(
+                new PriceTick(
+                "EURUSD",
+                1.0849m,
+                1.0851m,
+                DateTimeOffset.UtcNow));
+
             var service = new PricingGrpcService(
+                marketQuoteCache,
                 NullLogger<PricingGrpcService>.Instance);
 
             var response = await service.GetPrice(
@@ -47,9 +70,12 @@ namespace PricingService.Tests
         }
 
         [Fact]
-        public async Task GetPrice_Should_Throw_When_Symbol_Is_Unknown()
+        public async Task GetPrice_Should_Throw_When_MarketData_Is_Not_Available()
         {
+            var marketQuoteCache = new MarketQuoteCache();
+
             var service = new PricingGrpcService(
+                marketQuoteCache,
                 NullLogger<PricingGrpcService>.Instance);
 
             Func<Task> action = async () => await service.GetPrice(
@@ -58,13 +84,15 @@ namespace PricingService.Tests
 
             var exception = await action.Should().ThrowAsync<RpcException>();
 
-            exception.Which.StatusCode.Should().Be(StatusCode.NotFound);
+            exception.Which.StatusCode.Should().Be(StatusCode.Unavailable);
         }
 
         [Fact]
         public async Task GetPrice_Should_Throw_When_Symbol_Is_Empty()
         {
+            var marketQuoteCache = new MarketQuoteCache();
             var service = new PricingGrpcService(
+                marketQuoteCache,
                 NullLogger<PricingGrpcService>.Instance);
 
             var action = async () => await service.GetPrice(
@@ -79,7 +107,17 @@ namespace PricingService.Tests
         [Fact]
         public async Task GetPrice_WhenCorrelationIdHeaderExists_ShouldStillReturnPrice()
         {
+            var marketQuoteCache = new MarketQuoteCache();
+
+            marketQuoteCache.Update(
+                new PriceTick(
+                "EURUSD",
+                1.0849m,
+                1.0851m,
+                DateTimeOffset.UtcNow));
+
             var service = new PricingGrpcService(
+                marketQuoteCache,
                 NullLogger<PricingGrpcService>.Instance);
 
             var headers = new Metadata
@@ -105,7 +143,17 @@ namespace PricingService.Tests
                         double expectedAsk,
                         double expectedMid)
         {
+            var marketQuoteCache = new MarketQuoteCache();
+
+            marketQuoteCache.Update(
+                new PriceTick(
+                symbol,
+                (decimal)expectedBid,
+                (decimal)expectedAsk,
+                DateTimeOffset.UtcNow));
+
             var service = new PricingGrpcService(
+                marketQuoteCache,
                 NullLogger<PricingGrpcService>.Instance);
 
             var response = await service.GetPrice(

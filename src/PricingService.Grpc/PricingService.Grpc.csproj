@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.57.0" />
+    <PackageReference Include="NetMQ" Version="4.0.4.3" />
 	  <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
 	  <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
 	  <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
@@ -20,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TradingApp.MarketData.Contracts\TradingApp.MarketData.Contracts.csproj" />
     <ProjectReference Include="..\TradingApp.Shared\TradingApp.Shared.csproj" />
   </ItemGroup>
 
