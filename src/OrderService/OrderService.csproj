@@ -48,6 +48,7 @@
   </ItemGroup>
 
 	<ItemGroup>
+		<Protobuf Include="Protos\pricing.proto" GrpcServices="Client" />
 		<Protobuf Include="Protos\risk.proto" GrpcServices="Client" />
 	</ItemGroup>
 

@@ -8,7 +8,7 @@ using TradeCaptureService.Pricing;
 using TradeCaptureService.Services;
 using TradingApp.Contracts.Shared;
 
-namespace TradeCaptureService.Tests
+namespace TradeCaptureService.Tests.Services
 {
     public sealed class ExecutionPriceCalculatorTests
     {

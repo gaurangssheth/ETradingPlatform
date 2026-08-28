@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TradeCaptureService.Calculations;
-using TradeCaptureService.Domain;
-using TradeCaptureService.Infrastructure.UnitOfWork;
+using TradeCaptureService.Application;
 using TradeCaptureService.Pricing;
-using TradeCaptureService.ReferenceData;
 using TradeCaptureService.Services;
 using TradingApp.Contracts.Events;
 using TradingApp.Contracts.Shared;
@@ -16,42 +13,37 @@ namespace TradeCaptureService.Handlers
 {
     public class OrderAcceptedHandler : IHandleMessages<OrderAccepted>
     {
-        private readonly IUnitOfWork unitOfWork;
         private readonly IPricingClient pricingClient;
-        private readonly IReferenceDataClient referenceDataClient;
         private readonly ExecutionPriceCalculator executionPriceCalculator;
-        private readonly NotionalCalculatorResolver notionalCalculatorResolver;
+        private readonly TradeCaptureProcessor tradeCaptureProcessor;
         private readonly ILogger<OrderAcceptedHandler> logger;
 
-        public OrderAcceptedHandler(IUnitOfWork unitOfWork,
+        public OrderAcceptedHandler(
             IPricingClient pricingClient,
-            IReferenceDataClient referenceDataClient,
             ExecutionPriceCalculator executionPriceCalculator,
-            NotionalCalculatorResolver notionalCalculatorResolver,
+            TradeCaptureProcessor tradeCaptureProcessor,
             ILogger<OrderAcceptedHandler> logger)
         {
-            this.unitOfWork = unitOfWork;
             this.pricingClient = pricingClient;
-            this.referenceDataClient = referenceDataClient;
             this.executionPriceCalculator = executionPriceCalculator;
-            this.notionalCalculatorResolver = notionalCalculatorResolver;
+            this.tradeCaptureProcessor = tradeCaptureProcessor;
             this.logger = logger;
         }
 
         public async Task Handle(OrderAccepted message, IMessageHandlerContext context)
         {
-            if (await unitOfWork.Trades.ExistsForOrderAsync(message.OrderId, context.CancellationToken)) {
-                logger.LogWarning("Trade already exists for OrderId={OrderId}. Skipping duplicate. CorrelationId={CorrelationId}", 
+            if (message.OrderType == OrderType.Limit)
+            {
+                return;
+            }
+
+            if (await this.tradeCaptureProcessor.TradeExistsForOrderAsync(message.OrderId, context.CancellationToken))
+            {
+                logger.LogWarning("Trade already exists for OrderId={OrderId}. Skipping duplicate. CorrelationId={CorrelationId}",
                     message.OrderId,
                     message.CorrelationId);
                 return;
             }
-
-            var instrumentReferenceDefinition = await this.referenceDataClient.GetInstrumentAsync(message.Symbol, 
-                message.CorrelationId,
-                context.CancellationToken);
-
-            var instrument = instrumentReferenceDefinition.Instrument;
 
             var quote = await this.pricingClient.GetPriceAsync(message.Symbol,
                 message.CorrelationId,
@@ -59,63 +51,29 @@ namespace TradeCaptureService.Handlers
 
             var executionPrice = executionPriceCalculator.GetExecutionPrice(message.Side, quote);
 
-            var notionalCalculator = notionalCalculatorResolver.Resolve(
-                instrument.AssetClass);
+            var riskDesicionId = message.RiskDecisionId
+                ?? throw new InvalidOperationException(
+                $"RiskDecisionId is required for accepted order {message.OrderId}.");
 
-            var notional = notionalCalculator.Calculate(
-                instrumentReferenceDefinition,
-                message.Quantity,
-                executionPrice);
-
-            var tradeId = Guid.NewGuid();
-            var capturedAt = DateTimeOffset.UtcNow;
-
-            var trade = new Trade
+            var request = new TradeCaptureRequest
             {
-                Id = tradeId,
                 OrderId = message.OrderId,
                 ClientId = message.ClientId,
-                InstrumentId = instrument.InstrumentId,
-                Symbol = instrument.Symbol,
-                AssetClass = instrument.AssetClass,
+                Symbol = message.Symbol,
                 Side = message.Side,
                 OrderType = message.OrderType,
                 Quantity = message.Quantity,
-                Price = executionPrice,
-                Notional = notional,
-                NotionalCurrency = instrumentReferenceDefinition.Details.NotionalCurrency,
-                Status = TradeStatus.Captured,
-                CapturedAt = capturedAt,
+                ExecutionPrice = executionPrice,
+                RiskDecisionId = riskDesicionId,
+                ExecutedAt = DateTimeOffset.UtcNow,
                 CorrelationId = message.CorrelationId
             };
 
-            await unitOfWork.Trades.AddAsync(trade, context.CancellationToken);
-            await unitOfWork.SaveChangesAsync(context.CancellationToken);
+            await this.tradeCaptureProcessor.CaptureAsync(
+                request,
+                context);
 
-            logger.LogInformation(
-                "Trade captured. TradeId={TradeId}, OrderId={OrderId}, Symbol={Symbol}, CorrelationId={CorrelationId}",
-                trade.Id,
-                trade.OrderId,
-                trade.Symbol,
-                trade.CorrelationId);
 
-            await context.Publish(new TradeCaptured
-            {
-                TradeId = trade.Id,
-                OrderId = trade.OrderId,
-                InstrumentId = trade.InstrumentId,
-                ClientId = trade.ClientId,
-                Symbol = trade.Symbol,
-                AssetClass = trade.AssetClass,
-                Side = trade.Side,
-                Quantity = trade.Quantity,
-                Price = trade.Price,
-                Notional = trade.Notional,
-                NotionalCurrency = trade.NotionalCurrency.Value,
-                Status = trade.Status,
-                CapturedAt = trade.CapturedAt,
-                CorrelationId = trade.CorrelationId,
-            });
         }
     }
 }

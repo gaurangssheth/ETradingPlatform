@@ -1,4 +1,3 @@
-using Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using OrderService.Application.Commands;
@@ -42,6 +41,7 @@ public class OrdersController : ControllerBase
             request.Side,
             request.Quantity,
             request.OrderType,
+            request.LimitPrice,
             correlationId
         );
 

@@ -20,7 +20,8 @@ namespace OrderService.Infrastructure.Persistence.Configurations
             entity.Property(e => e.Side).HasConversion<string>().IsRequired();
             entity.Property(e => e.OrderType).HasConversion<string>().IsRequired();
             entity.Property(e => e.Quantity).HasPrecision(18, 4);
-            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.LimitPrice).HasPrecision(18, 8);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(e => e.CorrelationId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.RejectionReason).HasMaxLength(500);
         }

@@ -4,7 +4,7 @@ using TradingApp.Contracts.Shared;
 using TradingGateway.Api.Application.Commands.SubmitOrder;
 using TradingGateway.Api.Models;
 
-namespace TradingGateway.Api.Validation
+namespace TradingGateway.Api.Application.Commands.SubmitOrder.Validation
 {
     public sealed class SubmitOrderCommandValidator : PolymorphicValidatorBase<SubmitOrderCommand>
     {
@@ -13,7 +13,7 @@ namespace TradingGateway.Api.Validation
         public SubmitOrderCommandValidator()
         {
             validator = new CompositeValidator<SubmitOrderCommand>(
-                new IObjectValidationRule<SubmitOrderCommand>[]
+                new IValidationRule<SubmitOrderCommand>[]
                 {
                     new FieldRule<SubmitOrderCommand, string?>("ClientId", x => x.ClientId, new ExistsStringRule()),
                     new FieldRule<SubmitOrderCommand, string?>("Symbol", x => x.Symbol, new ExistsStringRule()),
@@ -22,8 +22,8 @@ namespace TradingGateway.Api.Validation
                     new FieldRule<SubmitOrderCommand, string?>("OrderType", x => x.OrderType, new ExistsStringRule()),
                     new FieldRule<SubmitOrderCommand, string?>("CorrelationId", x => x.CorrelationId, new ExistsStringRule()),
                     new FieldRule<SubmitOrderCommand, string?>("Side", x => x.Side, new EnumStringRule<OrderSide>()),
-                    new FieldRule<SubmitOrderCommand, string?>("OrderType", x => x.OrderType, new EnumStringRule<OrderType>())
-
+                    new FieldRule<SubmitOrderCommand, string?>("OrderType", x => x.OrderType, new EnumStringRule<OrderType>()),
+                    new CrossFieldRule<SubmitOrderCommand, (string? OrderType, decimal? LimitPrice)>(command => (command.OrderType, command.LimitPrice), new LimitOrderPriceRule())
                 }
             );
         }

@@ -10,7 +10,10 @@ using OrderService.Handlers;
 using OrderService.Infrastructure.Persistence;
 using OrderService.Infrastructure.Repositories;
 using OrderService.Infrastructure.UnitOfWork;
+using OrderService.Pricing;
 using OrderService.Risk;
+using OrderService.Sagas;
+using OrderService.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -68,7 +71,8 @@ namespace OrderService.Tests.Handlers
             order.Side.Should().Be(OrderSide.Buy);
             order.Quantity.Should().Be(100000m);
             order.OrderType.Should().Be(OrderType.Market);
-            order.Status.Should().Be("Accepted");
+            order.Status.Should().Be(OrderStatus.Accepted);
+            order.LimitPrice.Should().BeNull();
             order.CorrelationId.Should().Be("submit-order-handler-test-001");
             order.CreatedAt.Should().NotBe(default);
             order.AcceptedAt.Should().NotBeNull();
@@ -88,6 +92,7 @@ namespace OrderService.Tests.Handlers
             published.Side.Should().Be(OrderSide.Buy);
             published.OrderType.Should().Be(OrderType.Market);
             published.Quantity.Should().Be(100000m);
+            published.LimitPrice.Should().BeNull();
             published.CorrelationId.Should().Be("submit-order-handler-test-001");
             published.AcceptedAt.Should().NotBe(default);
             published.RiskDecisionId.Should().Be(riskDecisionId.ToString());
@@ -96,6 +101,79 @@ namespace OrderService.Tests.Handlers
                 It.Is<SubmitOrder>(o => o.OrderId == orderId),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_WhenLimitOrderIsReceived_ShouldPersistLimitPrice()
+        {
+            await using var connection =
+                new SqliteConnection("Datasource=:memory:");
+
+            await connection.OpenAsync();
+
+            await using var dbContext =
+                CreateDbContext(connection);
+
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var riskDecisionId = Guid.NewGuid();
+
+            var riskClient = CreateRiskClient(
+                approved: true,
+                reasonCode: "APPROVED",
+                reason: "Order approved by risk checks.",
+                riskDecisionId: riskDecisionId);
+
+            var handler =
+                CreateHandler(dbContext, riskClient);
+
+            var messageContext =
+                new TestableMessageHandlerContext();
+
+            var orderId = Guid.NewGuid();
+
+            var command = new SubmitOrder
+            {
+                OrderId = orderId,
+                ClientId = "client-001",
+                Symbol = "EURUSD",
+                Side = OrderSide.Buy,
+                OrderType = OrderType.Limit,
+                Quantity = 100000m,
+                LimitPrice = 1.0845m,
+                CorrelationId = "limit-order-persistence-test-001"
+            };
+
+            await handler.Handle(
+                command,
+                messageContext);
+
+            var order =
+                await dbContext.Orders.SingleAsync(
+                    x => x.Id == orderId);
+
+            order.OrderType.Should().Be(OrderType.Limit);
+            order.LimitPrice.Should().Be(1.0845m);
+            order.Status.Should().Be(OrderStatus.Accepted);
+
+            messageContext.PublishedMessages.Should().ContainSingle();
+
+            var published = messageContext.PublishedMessages.Single().Message
+                .Should()
+                .BeOfType<OrderAccepted>()
+                .Subject;
+
+
+            published.OrderId.Should().Be(orderId);
+            published.ClientId.Should().Be("client-001");
+            published.Symbol.Should().Be("EURUSD");
+            published.Side.Should().Be(OrderSide.Buy);
+            published.OrderType.Should().Be(OrderType.Limit);
+            published.Quantity.Should().Be(100000m);
+            published.LimitPrice.Should().Be(1.0845m);
+            published.CorrelationId.Should().Be("limit-order-persistence-test-001");
+            published.AcceptedAt.Should().NotBe(default);
+            published.RiskDecisionId.Should().Be(riskDecisionId.ToString());
         }
 
         [Fact]
@@ -141,7 +219,7 @@ namespace OrderService.Tests.Handlers
             order.Side.Should().Be(OrderSide.Buy);
             order.Quantity.Should().Be(1_000_001m);
             order.OrderType.Should().Be(OrderType.Market);
-            order.Status.Should().Be("Rejected");
+            order.Status.Should().Be(OrderStatus.Rejected);
             order.CorrelationId.Should().Be("submit-order-handler-test-rejected");
             order.CreatedAt.Should().NotBe(default);
             order.AcceptedAt.Should().BeNull();
@@ -215,7 +293,7 @@ namespace OrderService.Tests.Handlers
 
 
             var order = await dbContext.Orders.SingleAsync(x => x.Id == command.OrderId);
-            order.Status.Should().Be("PendingRisk");
+            order.Status.Should().Be(OrderStatus.PendingRisk);
             order.AcceptedAt.Should().BeNull();
             order.RejectedAt.Should().BeNull();
             order.RejectionReason.Should().BeNull();
@@ -249,7 +327,7 @@ namespace OrderService.Tests.Handlers
                     Side = OrderSide.Buy,
                     OrderType = OrderType.Market,
                     Quantity = 100_000m,
-                    Status = "PendingRisk",
+                    Status = OrderStatus.PendingRisk,
                     CorrelationId = "risk-retry-test-001",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
@@ -286,7 +364,7 @@ namespace OrderService.Tests.Handlers
 
             var order = orders.Single();
 
-            order.Status.Should().Be("Accepted");
+            order.Status.Should().Be(OrderStatus.Accepted);
             order.AcceptedAt.Should().NotBeNull();
             order.RejectedAt.Should().BeNull();
 
@@ -301,11 +379,91 @@ namespace OrderService.Tests.Handlers
             riskClient.Verify(x => x.CheckOrderRiskAsync(
                 It.Is<SubmitOrder>(o => o.OrderId == orderId),
                 It.IsAny<CancellationToken>()), Times.Once);
-
-
-
         }
 
+        [Fact]
+        public async Task Handle_WhenRiskApprovesLimitOrder_ShouldStartLimitOrder()
+        {
+            await using var connection = new SqliteConnection("Datasource=:memory:");
+
+            await connection.OpenAsync();
+
+            await using var dbContext = CreateDbContext(connection);
+
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var riskDecisionId = Guid.NewGuid();
+
+            var riskClient = CreateRiskClient(
+                approved: true,
+                reasonCode: "APPROVED",
+                reason: "Order approved by risk checks.",
+                riskDecisionId: riskDecisionId);
+
+            var handler = CreateHandler(dbContext, riskClient);
+
+            var messageContext = new TestableMessageHandlerContext();
+
+            var orderId = Guid.NewGuid();
+
+            var command = new SubmitOrder
+            {
+                OrderId = orderId,
+                ClientId = "client-001",
+                Symbol = "EURUSD",
+                Side = OrderSide.Buy,
+                OrderType = OrderType.Limit,
+                Quantity = 100000m,
+                LimitPrice = 1.0845m,
+                CorrelationId = "submit-limit-order-test-001"
+            };
+
+            await handler.Handle(command, messageContext);
+
+            var order = await dbContext.Orders.SingleAsync(
+                    x => x.Id == orderId);
+
+            order.Status.Should().Be(OrderStatus.Accepted);
+            order.LimitPrice.Should().Be(1.0845m);
+
+            messageContext.SentMessages
+                .Should()
+                .ContainSingle();
+
+            var sent = messageContext.SentMessages
+                .Single()
+                .Message
+                .Should()
+                .BeOfType<StartLimitOrder>()
+                .Subject;
+
+            sent.OrderId.Should().Be(orderId);
+            sent.ClientId.Should().Be("client-001");
+            sent.Symbol.Should().Be("EURUSD");
+            sent.Side.Should().Be(OrderSide.Buy);
+            sent.Quantity.Should().Be(100000m);
+            sent.LimitPrice.Should().Be(1.0845m);
+            sent.CorrelationId.Should()
+                .Be("submit-limit-order-test-001");
+
+            messageContext.PublishedMessages
+                .Should()
+                .ContainSingle();
+
+            var published = messageContext.PublishedMessages
+                    .Single()
+                    .Message
+                    .Should()
+                    .BeOfType<OrderAccepted>()
+                    .Subject;
+
+            published.OrderType.Should()
+                .Be(OrderType.Limit);
+
+            published.LimitPrice.Should()
+                .Be(1.0845m);
+        }
+                
         private OrderDbContext CreateDbContext(SqliteConnection connection)
         {
             var options = new DbContextOptionsBuilder<OrderDbContext>()

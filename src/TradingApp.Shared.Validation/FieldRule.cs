@@ -1,6 +1,6 @@
 ﻿namespace TradingApp.Shared.Validation;
 
-public sealed class FieldRule<T, TValue> : IObjectValidationRule<T>
+public sealed class FieldRule<T, TValue> : IValidationRule<T>
 {
     private readonly string fieldName;
     private readonly Func<T, TValue> selector;
@@ -13,9 +13,9 @@ public sealed class FieldRule<T, TValue> : IObjectValidationRule<T>
         this.rule = rule;
     }
 
-    public string? Validate(T instance)
+    public string? Validate(T value)
     {
-        var value = selector(instance);
-        return rule.Validate(fieldName, value);
+        var selectedValue = this.selector(value);
+        return rule.Validate(fieldName, selectedValue);
     }
 }

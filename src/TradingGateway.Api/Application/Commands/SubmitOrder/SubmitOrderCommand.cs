@@ -6,5 +6,6 @@
         string? Side,
         decimal? Quantity,
         string? OrderType,
+        decimal? LimitPrice,
         string? CorrelationId);
 }

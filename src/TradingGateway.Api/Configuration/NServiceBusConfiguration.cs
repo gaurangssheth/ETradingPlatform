@@ -1,5 +1,4 @@
-﻿using Contracts;
-using NServiceBus.TransactionalSession;
+﻿using NServiceBus.TransactionalSession;
 using TradingApp.Contracts.Commands;
 using TradingApp.Shared.Messaging;
 using TradingApp.Shared.Messaging.Correlation;

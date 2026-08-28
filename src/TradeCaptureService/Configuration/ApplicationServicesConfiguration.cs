@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Application;
 using TradeCaptureService.Calculations;
 using TradeCaptureService.Pricing;
 using TradeCaptureService.ReferenceData;
@@ -44,6 +45,7 @@ namespace TradeCaptureService.Configuration
             services.AddScoped<IPricingClient, GrpcPricingClient>();
             services.AddScoped<IReferenceDataClient, GrpcReferenceDataClient>();
             services.AddSingleton<ExecutionPriceCalculator>();
+            services.AddScoped<TradeCaptureProcessor>();
 
             services.AddSingleton<
                 INotionalCalculator,

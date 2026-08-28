@@ -4,11 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NServiceBus.Testing;
+using NServiceBus.Transport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradeCaptureService.Application;
 using TradeCaptureService.Calculations;
 using TradeCaptureService.Domain;
 using TradeCaptureService.Handlers;
@@ -19,9 +21,12 @@ using TradeCaptureService.Pricing;
 using TradeCaptureService.ReferenceData;
 using TradeCaptureService.Services;
 using TradeCaptureService.Tests.Infrastructure.Persistence;
+using TradingApp.Contracts.Commands;
 using TradingApp.Contracts.Events;
 using TradingApp.Contracts.Shared;
 using TradingApp.SharedKernel;
+using static PricingService.Grpc.Pricing;
+using static ReferenceDataService.Grpc.ReferenceData;
 
 namespace TradeCaptureService.Tests.Handlers
 {
@@ -474,6 +479,74 @@ namespace TradeCaptureService.Tests.Handlers
                 Times.Once);
         }
 
+        [Fact]
+        public async Task Handle_WhenOrderIsLimit_ShouldNotCaptureTrade()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+
+            await connection.OpenAsync();
+
+            await using var dbContext = CreateDbContext(connection);
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var orderId = Guid.NewGuid();
+
+            var message = new OrderAccepted
+            {
+                OrderId = orderId,
+                ClientId = "client-001",
+                Symbol = "EURUSD",
+                Side = OrderSide.Buy,
+                Quantity = 100000m,
+                OrderType = OrderType.Limit,
+                LimitPrice = 1.0845m,
+                AcceptedAt = DateTimeOffset.UtcNow,
+                RiskDecisionId = Guid.NewGuid().ToString(),
+                CorrelationId = "limit-order-handler-test-001"
+            };
+
+            var instrumentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+            var instrument = new InstrumentReferenceData
+            {
+                InstrumentId = instrumentId,
+                Symbol = "EURUSD",
+                AssetClass = AssetClass.Fx,
+                IsTradable = true
+            };
+
+            var details = new FxInstrumentReferenceDetails(instrument.InstrumentId,
+                "EUR",
+                "USD",
+                0.0001m);
+
+            var pricingClient = CreatePricingClient(
+                bid: 1.0849m,
+                ask: 1.0851m,
+                mid: 1.0850m);
+
+            var referenceDataClient = CreateReferenceDataClient(instrument, details);
+
+            var handler = CreateHandler(dbContext, pricingClient, referenceDataClient);
+
+            var messageContext = new TestableMessageHandlerContext();
+
+            await handler.Handle(message, messageContext);
+
+            pricingClient.Verify(
+                x => x.GetPriceAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            var trade =
+                await dbContext.Trades.SingleOrDefaultAsync(
+                    x => x.OrderId == orderId);
+
+            trade.Should().BeNull();
+        }
+
         private TradeDbContext CreateDbContext(SqliteConnection connection)
         {
             var options = new DbContextOptionsBuilder<TradeDbContext>()
@@ -492,12 +565,17 @@ namespace TradeCaptureService.Tests.Handlers
                 dbContext,
                 new TradeRepository(dbContext, NullLogger<TradeRepository>.Instance));
 
-            return new OrderAcceptedHandler(
+            var tradeCaptureProcessor =
+                new TradeCaptureProcessor(
                 unitOfWork,
-                pricingClient.Object,
                 referenceDataClient.Object,
-                new ExecutionPriceCalculator(),
                 CreateResolver(),
+                NullLogger<TradeCaptureProcessor>.Instance);
+
+            return new OrderAcceptedHandler(
+                pricingClient.Object,
+                new ExecutionPriceCalculator(),
+                tradeCaptureProcessor,
                 NullLogger<OrderAcceptedHandler>.Instance);
         }
 

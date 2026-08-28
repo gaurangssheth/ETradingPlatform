@@ -11,4 +11,6 @@ public class SubmitOrderRequest
     public decimal? Quantity { get; set; }
 
     public string? OrderType { get; set; }
+
+    public decimal? LimitPrice { get; set; }
 }

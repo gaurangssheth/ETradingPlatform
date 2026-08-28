@@ -39,12 +39,13 @@ namespace TradingGateway.Api.Application.Commands.SubmitOrder
             var orderId = Guid.NewGuid();
 
             logger.LogInformation(
-                "Submitting order. ClientId={ClientId}, Symbol={Symbol}, Side={Side}, Quantity={Quantity}, OrderType={OrderType}, CorrelationId={CorrelationId}",
+                "Submitting order. ClientId={ClientId}, Symbol={Symbol}, Side={Side}, Quantity={Quantity}, OrderType={OrderType}, LimitPrice={LimitPrice}, CorrelationId={CorrelationId}",
                 command.ClientId,
                 command.Symbol,
                 command.Side,
                 command.Quantity,
                 command.OrderType,
+                command.LimitPrice,
                 command.CorrelationId);
 
             await transactionalSession
@@ -58,6 +59,7 @@ namespace TradingGateway.Api.Application.Commands.SubmitOrder
                 Side = side,
                 Quantity = command.Quantity!.Value,
                 OrderType = orderType,
+                LimitPrice = command.LimitPrice,
                 CorrelationId = command.CorrelationId!
 
             }, cancellationToken);

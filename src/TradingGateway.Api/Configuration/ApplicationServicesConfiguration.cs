@@ -2,7 +2,7 @@
 using OrderService.Application.Queries;
 using TradingApp.Shared.Validation;
 using TradingGateway.Api.Application.Commands.SubmitOrder;
-using TradingGateway.Api.Validation;
+using TradingGateway.Api.Application.Commands.SubmitOrder.Validation;
 
 namespace TradingGateway.Api.Configuration
 {

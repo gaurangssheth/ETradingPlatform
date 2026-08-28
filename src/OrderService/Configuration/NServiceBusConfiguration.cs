@@ -30,7 +30,7 @@ namespace OrderService.Configuration
             transport.UseConventionalRoutingTopology(QueueType.Quorum);
 
             var routing = transport.Routing();
-            routing.RouteToEndpoint(typeof(CaptureTrade), EndpointNames.TradeCaptureService);
+            routing.RouteToEndpoint(typeof(ExecuteLimitOrder), EndpointNames.TradeCaptureService);
 
             var persistence = endpointConfiguration.UsePersistence<SqlPersistence>();
 

@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TradingApp.Contracts.Commands;
 using TradingApp.Contracts.Events;
+using TradingApp.Contracts.Shared;
 
 namespace OrderService.Handlers
 {
@@ -44,7 +45,8 @@ namespace OrderService.Handlers
                     Side = message.Side,
                     OrderType = message.OrderType,
                     Quantity = message.Quantity,
-                    Status = "PendingRisk",
+                    LimitPrice = message.LimitPrice,
+                    Status = OrderStatus.PendingRisk,
                     CorrelationId = message.CorrelationId,
                     CreatedAt = DateTimeOffset.UtcNow
                 };
@@ -80,7 +82,7 @@ namespace OrderService.Handlers
         {
             var acceptedAt = DateTimeOffset.UtcNow;
 
-            order.Status = "Accepted";
+            order.Status = OrderStatus.Accepted;
             order.AcceptedAt = acceptedAt;
             order.RejectedAt = null;
             order.RejectionReason = null;
@@ -95,6 +97,21 @@ namespace OrderService.Handlers
                 riskDecision.RiskDecisionId,
                 order.CorrelationId);
 
+            if (order.OrderType == OrderType.Limit)
+            {
+                await context.SendLocal(new StartLimitOrder
+                {
+                    OrderId = order.Id,
+                    ClientId = order.ClientId,
+                    Symbol = order.Symbol,
+                    Side = order.Side,
+                    Quantity = order.Quantity,
+                    LimitPrice = order.LimitPrice!.Value,
+                    RiskDecisionId = riskDecision.RiskDecisionId.ToString(),
+                    CorrelationId = order.CorrelationId
+                });
+            }
+
             await context.Publish(new OrderAccepted
             {
                 OrderId = order.Id,
@@ -102,6 +119,7 @@ namespace OrderService.Handlers
                 Symbol = order.Symbol,
                 Side = order.Side,
                 Quantity = order.Quantity,
+                LimitPrice = order.LimitPrice,
                 OrderType = order.OrderType,
                 AcceptedAt = order.AcceptedAt!.Value,
                 RiskDecisionId = riskDecision.RiskDecisionId.ToString(),
@@ -116,7 +134,7 @@ namespace OrderService.Handlers
         {
             var rejectedAt = DateTimeOffset.UtcNow;
 
-            order.Status = "Rejected";
+            order.Status = OrderStatus.Rejected;
             order.AcceptedAt = null;
             order.RejectedAt = rejectedAt;
             order.RejectionReason = riskDecision.Reason;

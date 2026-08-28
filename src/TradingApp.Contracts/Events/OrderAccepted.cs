@@ -21,6 +21,8 @@ namespace TradingApp.Contracts.Events
 
         public decimal Quantity { get; set; }
 
+        public decimal? LimitPrice { get; set; }
+
         public DateTimeOffset AcceptedAt { get; set; }
 
         public string? RiskDecisionId { get; set; } = null!;

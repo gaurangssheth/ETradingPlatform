@@ -5,6 +5,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Data\**" />
+    <Compile Remove="Hubs\**" />
+    <Compile Remove="Services\**" />
+    <Content Remove="Data\**" />
+    <Content Remove="Hubs\**" />
+    <Content Remove="Services\**" />
+    <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="Hubs\**" />
+    <EmbeddedResource Remove="Services\**" />
+    <None Remove="Data\**" />
+    <None Remove="Hubs\**" />
+    <None Remove="Services\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
     <PackageReference Include="NServiceBus" Version="9.2.*" />
     <PackageReference Include="NServiceBus.Extensions.Hosting" Version="3.0.*" />
@@ -38,9 +52,7 @@
     <ProjectReference Include="..\TradingApp.Shared\TradingApp.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Data\" />
-    <Folder Include="Hubs\" />
+    <Folder Include="Domain\" />
     <Folder Include="Infrastructure\Persistence\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 </Project>

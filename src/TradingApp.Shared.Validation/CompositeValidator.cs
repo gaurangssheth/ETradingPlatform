@@ -2,9 +2,9 @@
 
 public sealed class CompositeValidator<T> : IValidator<T>
 {
-    private readonly IEnumerable<IObjectValidationRule<T>> rules;
+    private readonly IEnumerable<IValidationRule<T>> rules;
 
-    public CompositeValidator(IEnumerable<IObjectValidationRule<T>> rules)
+    public CompositeValidator(IEnumerable<IValidationRule<T>> rules)
     {
         this.rules = rules;
     }

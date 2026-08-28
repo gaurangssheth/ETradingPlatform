@@ -21,6 +21,8 @@ namespace TradingApp.Contracts.Commands
 
         public OrderType OrderType { get; set; }
 
+        public decimal? LimitPrice { get; set; }
+
         public string CorrelationId { get; set; } = null!;
     }
 }
