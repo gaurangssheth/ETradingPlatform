@@ -6,6 +6,7 @@ using ReferenceDataService.Grpc.Services;
 using ReferenceDataService.Infrastructure.Repositories;
 
 Console.Title = "ETrading - ReferenceDataService.Grpc";
+Console.WriteLine("ReferenceDataService.Grpc is running.");
 
 var builder = WebApplication.CreateBuilder(args);
 

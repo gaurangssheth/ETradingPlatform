@@ -1,6 +1,7 @@
 using PositionService.Configuration;
 
 Console.Title = "ETrading - PositionService";
+Console.WriteLine("PositionService is running.");
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>
@@ -14,7 +15,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         services.AddPositionDatabase(context.Configuration);
-        services.AddApplicationServices();
+        services.AddApplicationServices(context.Configuration);
     })
     .UseSerilogConfiguration()
     .UseNServiceBus(context =>

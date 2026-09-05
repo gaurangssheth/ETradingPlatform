@@ -602,12 +602,12 @@ namespace TradeCaptureService.Tests.Handlers
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
                 .ReturnsAsync((string symbol, string? _, CancellationToken _) => new PriceQuote
-                {
-                    Symbol = symbol,
-                    Bid = bid,
-                    Ask = ask,
-                    Mid = mid
-                });
+                (
+                    Symbol: symbol,
+                    Bid: bid,
+                    Ask: ask,
+                    Mid: mid
+                ));
 
             return pricingClient;
         }

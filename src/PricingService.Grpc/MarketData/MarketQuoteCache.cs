@@ -10,9 +10,8 @@ namespace PricingService.Grpc.MarketData
 
         public void Update(PriceTick tick)
         {
-            ArgumentNullException.ThrowIfNull(tick, nameof(tick));
-
-            this.quotes.AddOrUpdate(tick.Symbol, tick, (_, _) => tick);
+            quotes.AddOrUpdate(tick.Symbol, tick, (_, existingTick) =>
+                tick.Timestamp > existingTick.Timestamp ? tick : existingTick);
         }
 
         public bool TryGet(string symbol, [NotNullWhen(true)] out PriceTick? tick)

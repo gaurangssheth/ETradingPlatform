@@ -8,7 +8,7 @@ namespace PositionService.Application.PositionAccounting
 {
     public sealed class BondRealisedPnlCalculator : IRealisedPnlCalculator
     {
-        private const decimal PercentagePriceBasis = 100m;
+        private const decimal PricePerHundredNominal = 100m;
 
         public AssetClass AssetClass => AssetClass.FixedIncome;
 
@@ -25,7 +25,7 @@ namespace PositionService.Application.PositionAccounting
 
             return closedQuantity *
                    priceDifference /
-                   PercentagePriceBasis;
+                   PricePerHundredNominal;
         }
     }
 }

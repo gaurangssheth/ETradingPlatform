@@ -25,7 +25,6 @@ namespace PositionService.Domain
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public ICollection<PositionMovement> Movements { get; set; } = new List<PositionMovement>();
-
-
+        public long AccountingVersion { get; set; }
     }
 }

@@ -49,6 +49,7 @@ namespace PositionService.Infrastructure.Persistence.Configurations
             entity.Property(e => e.CorrelationId).HasMaxLength(100).IsRequired();
             entity.HasMany(e => e.Movements).WithOne(e => e.Position).HasForeignKey(e => e.PositionId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(e => e.AccountingVersion).IsConcurrencyToken();
         }
     }
 }

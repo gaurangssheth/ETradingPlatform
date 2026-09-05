@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Messaging.Correlation;
 
-namespace OrderService.Pricing
+namespace PositionService.Pricing
 {
     public sealed class GrpcPricingClient : IPricingClient
     {   

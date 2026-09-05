@@ -10,5 +10,9 @@ namespace PositionService.Infrastructure.Repositories
     public interface IPositionRepository : IGenericRepository<Position>
     {
         Task<Position?> GetByClientAndInstrumentIdAsync(string clientId, Guid instrumentId, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Position>> GetOpenPositionsAsync(CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Position>> GetOpenPositionsBySymbolAsync(string symbol, CancellationToken cancellationToken = default);
     }
 }

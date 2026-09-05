@@ -3,6 +3,7 @@ using PricingService.Grpc.MarketData;
 using PricingService.Grpc.Services;
 
 Console.Title = "ETrading - PricingService.Grpc";
+Console.WriteLine("PricingService.Grpc is running.");
 
 var builder = WebApplication.CreateBuilder(args);
 

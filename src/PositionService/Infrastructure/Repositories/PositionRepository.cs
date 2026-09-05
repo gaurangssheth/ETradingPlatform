@@ -57,5 +57,19 @@ namespace PositionService.Infrastructure.Repositories
         {
             return await context.Positions.SingleOrDefaultAsync(p => p.ClientId == clientId && p.InstrumentId == instrumentId, cancellationToken);
         }
+
+        public async Task<IReadOnlyList<Position>> GetOpenPositionsBySymbolAsync(string symbol, CancellationToken cancellationToken = default)
+        {
+            return await context.Positions
+                .Where(p => p.NetQuantity != 0m && p.Symbol == symbol)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<Position>> GetOpenPositionsAsync(CancellationToken cancellationToken = default)
+        {
+            return await context.Positions
+                .Where(p => p.NetQuantity != 0) // Filter positions with non-zero net quantity
+                .ToListAsync(cancellationToken);
+        }
     }
 }

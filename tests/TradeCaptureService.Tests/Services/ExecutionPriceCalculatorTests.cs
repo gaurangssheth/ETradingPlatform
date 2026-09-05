@@ -18,12 +18,12 @@ namespace TradeCaptureService.Tests.Services
             var calculator = new ExecutionPriceCalculator();
 
             var quote = new PriceQuote
-            {
-                Symbol = "EURUSD",
-                Bid = 1.0849m,
-                Ask = 1.0851m,
-                Mid = 1.0850m
-            };
+            (
+                Symbol: "EURUSD",
+                Bid: 1.0849m,
+                Ask: 1.0851m,
+                Mid: 1.0850m
+            );
 
             var result = calculator.GetExecutionPrice(OrderSide.Buy, quote);
 
@@ -36,12 +36,12 @@ namespace TradeCaptureService.Tests.Services
             var calculator = new ExecutionPriceCalculator();
 
             var quote = new PriceQuote
-            {
-                Symbol = "EURUSD",
-                Bid = 1.0849m,
-                Ask = 1.0851m,
-                Mid = 1.0850m
-            };
+            (
+                Symbol: "EURUSD",
+                Bid: 1.0849m,
+                Ask: 1.0851m,
+                Mid: 1.0850m
+            );
 
             var result = calculator.GetExecutionPrice(OrderSide.Sell, quote);
 

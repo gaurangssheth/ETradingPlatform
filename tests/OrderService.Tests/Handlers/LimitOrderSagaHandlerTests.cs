@@ -126,12 +126,12 @@ namespace OrderService.Tests.Handlers
                     "limit-order-saga-test-001",
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new PriceQuote
-                {
-                    Symbol = "EURUSD",
-                    Bid = (decimal)bid,
-                    Ask = (decimal)ask,
-                    Mid = ((decimal)bid + (decimal)ask) / 2
-                });
+                (
+                    Symbol: "EURUSD",
+                    Bid: (decimal)bid,
+                    Ask: (decimal)ask,
+                    Mid: ((decimal)bid + (decimal)ask) / 2
+                ));
 
             var handler = CreateHandler(dbContext, pricingClient);
 

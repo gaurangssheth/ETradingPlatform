@@ -6,15 +6,10 @@ using System.Threading.Tasks;
 
 namespace TradeCaptureService.Pricing
 {
-    public sealed class PriceQuote
-    {
-        public string Symbol { get; set; } = null!;
-
-        public decimal Bid { get; init; }
-
-        public decimal Ask { get; init; }
-
-        public decimal Mid { get; init; }
-
-    }
+    public sealed record PriceQuote(
+        string Symbol,
+        decimal Bid,
+        decimal Ask,
+        decimal Mid
+    );
 }

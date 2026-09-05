@@ -9,7 +9,7 @@ using TradingApp.MarketData.Contracts;
 
 namespace MarketDataSimulator
 {
-    internal sealed class MarketDataSimulatorApplication
+    public sealed class MarketDataSimulatorApplication
     {
         private const string PublisherEndpoint = "tcp://*:5555";
 

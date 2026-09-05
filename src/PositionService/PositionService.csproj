@@ -9,6 +9,13 @@
     <Content Include="Properties\launchSettings.json" />
   </ItemGroup>
   <ItemGroup>
+	  <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+	  <PackageReference Include="Grpc.Net.ClientFactory" Version="2.80.0" />
+	  <PackageReference Include="Grpc.Tools" Version="2.81.1">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="NetMQ" Version="4.0.4.3" />
     <PackageReference Include="NServiceBus" Version="9.2.*" />
     <PackageReference Include="NServiceBus.Extensions.Hosting" Version="3.0.*" />
     <PackageReference Include="NServiceBus.RabbitMQ" Version="10.1.*" />
@@ -25,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TradingApp.Contracts\TradingApp.Contracts.csproj" />
+    <ProjectReference Include="..\TradingApp.MarketData.Contracts\TradingApp.MarketData.Contracts.csproj" />
     <ProjectReference Include="..\TradingApp.SharedKernel\TradingApp.SharedKernel.csproj" />
     <ProjectReference Include="..\TradingApp.Shared\TradingApp.Shared.csproj" />
   </ItemGroup>
@@ -32,4 +40,7 @@
     <Folder Include="Data\" />
     <Folder Include="Sagas\" />
   </ItemGroup>
+	<ItemGroup>
+		<Protobuf Include="Protos\pricing.proto" GrpcServices="Client" />
+	</ItemGroup>
 </Project>

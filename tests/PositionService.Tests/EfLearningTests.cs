@@ -129,8 +129,7 @@ namespace PositionService.Tests
         [Fact]
         public async Task TrackedPosition_WhenPropertiesChange_ShouldBeUpdatedBySaveChanges()
         {
-            await using var connection =
-                new SqliteConnection("DataSource=:memory:");
+            await using var connection = new SqliteConnection("DataSource=:memory:");
 
             await connection.OpenAsync();
 
@@ -207,6 +206,164 @@ namespace PositionService.Tests
                 savedPosition.AveragePrice.Should().Be(1.0900m);
                 savedPosition.RealisedPnl.Should().Be(0.4000m);
             }
+        }
+
+        [Fact]
+        public async Task TwoContexts_ChangingDifferentProperties_ShouldPreserveBothChanges()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+
+            await connection.OpenAsync();
+
+            var options = new DbContextOptionsBuilder<PositionDbContext>()
+                .UseSqlite(connection)
+                .LogTo(Console.WriteLine)
+                .EnableSensitiveDataLogging()
+                .Options;
+
+            var positionId = Guid.NewGuid();
+
+            await using (var setupDbContext = new SqlitePositionDbContext(options))
+            {
+                await setupDbContext.Database.EnsureCreatedAsync();
+
+                setupDbContext.Positions.Add(
+                    CreatePosition(positionId));
+
+                await setupDbContext.SaveChangesAsync();
+            }
+
+            await using var dbContextA =
+                new SqlitePositionDbContext(options);
+
+            await using var dbContextB =
+                new SqlitePositionDbContext(options);
+
+            var positionA = await dbContextA.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            var positionB = await dbContextB.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            positionA.NetQuantity = 150m;
+
+            positionB.UnrealisedPnl = 25m;
+
+            await dbContextA.SaveChangesAsync();
+
+            await dbContextB.SaveChangesAsync();
+
+            await using var dbContext =
+                new SqlitePositionDbContext(options);
+
+            var savedPosition = await dbContext.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            savedPosition.NetQuantity.Should().Be(150m);
+            savedPosition.UnrealisedPnl.Should().Be(25m);
+        }
+
+        [Fact]
+        public async Task TwoContexts_ChangingSameProperty_LastSaveShouldWin()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+
+            await connection.OpenAsync();
+
+            var options = new DbContextOptionsBuilder<PositionDbContext>()
+                .UseSqlite(connection)
+                .LogTo(Console.WriteLine)
+                .EnableSensitiveDataLogging()
+                .Options;
+
+            var positionId = Guid.NewGuid();
+
+            await using (var setupDbContext =
+                new SqlitePositionDbContext(options))
+            {
+                await setupDbContext.Database.EnsureCreatedAsync();
+
+                setupDbContext.Positions.Add(
+                    CreatePosition(positionId));
+
+                await setupDbContext.SaveChangesAsync();
+            }
+
+            await using var dbContextA =
+                new SqlitePositionDbContext(options);
+
+            await using var dbContextB =
+                new SqlitePositionDbContext(options);
+
+            var positionA = await dbContextA.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            var positionB = await dbContextB.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            positionA.NetQuantity = 150m;
+            positionA.AccountingVersion++;
+
+            positionB.NetQuantity = 200m;
+            positionB.AccountingVersion++;
+
+            await dbContextA.SaveChangesAsync();
+
+            var act = async () => await dbContextB.SaveChangesAsync();
+
+            await act.Should().ThrowAsync<DbUpdateConcurrencyException>();
+
+            await using var verificationDbContext =
+                new SqlitePositionDbContext(options);
+
+            var savedPosition = await verificationDbContext.Positions
+                .SingleAsync(x => x.Id == positionId);
+
+            savedPosition.NetQuantity.Should().Be(150m);
+
+
+        }
+
+        [Fact]
+        public async Task MtmUpdate_ShouldFail_WhenTradeAccountingVersionChanged()
+        {
+            await using var connection = new SqliteConnection("DataSource=:memory:");
+            await connection.OpenAsync();
+
+            var options = new DbContextOptionsBuilder<PositionDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+            var positionId = Guid.NewGuid();
+
+            await using (var setupDbContext = new SqlitePositionDbContext(options))
+            {
+                await setupDbContext.Database.EnsureCreatedAsync();
+
+                var position = CreatePosition(positionId);
+                position.AccountingVersion = 5;
+                setupDbContext.Positions.Add(position);
+                await setupDbContext.SaveChangesAsync();
+            }
+
+            await using var mtmDbContext = new SqlitePositionDbContext(options);
+            var mtmPosition = await mtmDbContext.Positions.SingleAsync(x => x.Id == positionId);
+
+            await using var tradeDbContext = new SqlitePositionDbContext(options);
+            var tradePosition = await tradeDbContext.Positions.SingleAsync(x => x.Id == positionId);
+
+            // A new trade changes the accounting state.
+            tradePosition.NetQuantity += 50m;
+            tradePosition.AccountingVersion++;
+
+            await tradeDbContext.SaveChangesAsync();
+
+            // Now the MTM update should fail due to concurrency conflict.
+            mtmPosition.UnrealisedPnl = 125m;
+
+            var action = async () => await mtmDbContext.SaveChangesAsync();
+
+            await action.Should().ThrowAsync<DbUpdateConcurrencyException>();
         }
 
         private static Position CreatePosition(Guid positionId)

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OrderService.Pricing
+namespace PositionService.Pricing
 {
     public sealed record PriceQuote(
         string Symbol,

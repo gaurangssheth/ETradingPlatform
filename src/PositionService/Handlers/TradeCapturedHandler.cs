@@ -101,6 +101,7 @@ namespace PositionService.Handlers
             position.UnrealisedPnl = 0m;
             position.CorrelationId = message.CorrelationId;
             position.UpdatedAt = DateTimeOffset.UtcNow;
+            position.AccountingVersion++;
 
             await unitOfWork.PositionMovements.AddAsync(new Domain.PositionMovement
             {

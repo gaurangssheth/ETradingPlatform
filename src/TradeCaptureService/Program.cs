@@ -4,6 +4,7 @@ using Serilog;
 using TradeCaptureService.Configuration;
 
 Console.Title = "ETrading - TradeCaptureService";
+Console.WriteLine("TradeCaptureService is running.");
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>

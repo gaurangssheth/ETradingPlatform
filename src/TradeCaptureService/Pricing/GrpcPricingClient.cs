@@ -37,12 +37,12 @@ namespace TradeCaptureService.Pricing
             }, headers: headers, cancellationToken: cancellationToken);
 
             return new PriceQuote
-            {
-                Symbol = resposne.Symbol,
-                Bid = Convert.ToDecimal(resposne.Bid),
-                Ask = Convert.ToDecimal(resposne.Ask),
-                Mid = Convert.ToDecimal(resposne.Mid)
-            };
+            (
+                Symbol: resposne.Symbol,
+                Bid: Convert.ToDecimal(resposne.Bid),
+                Ask: Convert.ToDecimal(resposne.Ask),
+                Mid: Convert.ToDecimal(resposne.Mid)
+            );
         }
     }
 }

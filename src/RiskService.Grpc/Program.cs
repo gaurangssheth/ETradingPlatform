@@ -2,6 +2,7 @@ using RiskService.Grpc.Configuration;
 using RiskService.Grpc.Services;
 
 Console.Title = "ETrading - RiskService.Grpc";
+Console.WriteLine("RiskService.Grpc is running.");
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -59,6 +59,36 @@ namespace PricingService.Tests.MarketData
         }
 
         [Fact]
+        public void Update_ShouldKeepNewestTickByTimestamp()
+        {
+            var cache = new MarketQuoteCache();
+
+            var baseTimestamp = DateTimeOffset.UtcNow;
+
+            var olderTick = new PriceTick(
+                "EURUSD",
+                1.0840m,
+                1.0842m,
+                baseTimestamp);
+
+            var newerTick = new PriceTick(
+                "EURUSD",
+                1.0850m,
+                1.0852m,
+                baseTimestamp.AddMilliseconds(100));
+
+            cache.Update(newerTick);
+            cache.Update(olderTick);
+
+            var found = cache.TryGet(
+                "EURUSD",
+                out var tick);
+
+            found.Should().BeTrue();
+            tick.Should().Be(newerTick);
+        }
+
+        [Fact]
         public void TryGet_ReturnsFalse_WhenSymbolDoesNotExist()
         {
             var store = new MarketQuoteCache();
