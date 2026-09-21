@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Messaging.Correlation;
+using ReferenceDataService.Grpc;
 
 namespace ReferenceDataService.Grpc.Tests.Services
 {

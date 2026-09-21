@@ -16,7 +16,7 @@ namespace TradeCaptureService.Configuration
 {
     public static class DatabaseConfiguration
     {
-        public static IServiceCollection AddTradeCaptureDatabase(this IServiceCollection services,
+        public static IServiceCollection ConfigureDatabase(this IServiceCollection services,
             IConfiguration configuration)
         {
             var tradeCaptureDb = configuration.GetConnectionString(ConnectionStringNames.TradeCaptureDb)

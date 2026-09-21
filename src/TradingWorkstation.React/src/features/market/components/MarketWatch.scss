@@ -1,0 +1,71 @@
+.market-watch {
+  width: 100%;
+  background: #ffffff;
+
+  &__header {
+    padding: 12px 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid #dfe3e8;
+  }
+
+  &__message {
+    height: 72px;
+    text-align: center;
+    vertical-align: middle;
+    color: #667085;
+  }
+}
+
+.market-watch {
+  &__row {
+    cursor: pointer;
+
+    &:hover {
+      background: #f7f8fa;
+    }
+
+    &--selected {
+      box-shadow: inset 3px 0 0 #667085;
+      background: #fafafa;
+    }
+  }
+
+  &__price {
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+}
+
+.market-watch {
+  .data-table {
+    .symbol-column {
+      width: 34%;
+      text-align: left;
+      padding-left: 12px;
+      white-space: nowrap;
+    }
+
+    .numeric-column {
+      width: 22%;
+    }
+  }
+}
+
+.market-watch {
+  &__price--up {
+    background: #eaf7ee;
+    color: #137333;
+  }
+
+  &__price--down {
+    background: #fdecec;
+    color: #b42318;
+  }
+
+  &__price--unchanged {
+    background: transparent;
+    color: inherit;
+  }
+}

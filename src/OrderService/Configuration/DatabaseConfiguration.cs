@@ -15,7 +15,7 @@ namespace OrderService.Configuration
 {
     public static class DatabaseConfiguration
     {
-        public static IServiceCollection AddOrderDatabase(this IServiceCollection services,
+        public static IServiceCollection ConfigureDatabase(this IServiceCollection services,
             IConfiguration configuration)
         {
             var orderDb = configuration.GetConnectionString(ConnectionStringNames.OrderDb)

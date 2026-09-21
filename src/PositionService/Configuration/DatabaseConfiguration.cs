@@ -14,7 +14,7 @@ namespace PositionService.Configuration
 {
     public static class DatabaseConfiguration
     {
-        public static IServiceCollection AddPositionDatabase(this IServiceCollection services,
+        public static IServiceCollection    ConfigureDatabase(this IServiceCollection services,
             IConfiguration configuration)
         {
             var positionDb = configuration.GetConnectionString(ConnectionStringNames.PositionDb)

@@ -19,5 +19,16 @@ namespace TradeCaptureService.Configuration
                     .Enrich.FromLogContext();
             });
         }
+
+        public static IConfigurationBuilder AddSerilogConfiguration(this IConfigurationBuilder configuration,
+            IHostEnvironment environment)
+        {
+            configuration
+                .AddJsonFile("serilog.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"serilog.{environment.EnvironmentName}.json",
+                    optional: true, reloadOnChange: true);
+
+            return configuration;
+        }
     }
 }

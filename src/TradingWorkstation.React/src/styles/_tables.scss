@@ -1,0 +1,39 @@
+.data-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+    line-height: 1rem;
+  }
+
+  th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #fafbfc;
+  }
+
+  td {
+    font-size: 0.82rem;
+  }
+
+  .text-column {
+    text-align: left;
+  }
+
+  .symbol-column {
+    text-align: center;
+  }
+
+  .numeric-column {
+    text-align: right;
+  }
+
+  tbody tr:hover {
+    background: #fafbfc;
+  }
+}

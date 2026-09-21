@@ -32,8 +32,7 @@ namespace OrderService.Handlers
 
         public async Task Handle(SubmitOrder message, IMessageHandlerContext context)
         {
-            var order = await unitOfWork.Orders.GetByIdAsync(
-                message.OrderId, context.CancellationToken);
+            var order = await unitOfWork.Orders.GetByIdAsync(message.OrderId, context.CancellationToken);
 
             if (order is null)
             {

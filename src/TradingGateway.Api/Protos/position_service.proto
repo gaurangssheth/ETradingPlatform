@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option csharp_namespace = "PositionService.Grpc";
+
+package positions;
+
+service PositionService {
+  rpc GetOpenPositionsByClientId (GetOpenPositionsByClientIdRequest)
+      returns (GetOpenPositionsByClientIdResponse);
+}
+
+message GetOpenPositionsByClientIdRequest {
+  string clientId = 1;
+}
+
+message GetOpenPositionsByClientIdResponse {
+  repeated PositionSummary positions = 1;
+}
+
+message PositionSummary {
+  string instrumentId = 1;
+  string symbol = 2;
+  string assetClass = 3;
+
+  string netQuantity = 4;
+  string averagePrice = 5;
+
+  string pnlCurrency = 6;
+
+  string realisedPnl = 7;
+  string unrealisedPnl = 8;
+  string totalPnl = 9;
+}

@@ -9,21 +9,17 @@ Console.WriteLine("TradeCaptureService is running.");
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, config) =>
     {
-        config.AddJsonFile("serilog.json", optional: false, reloadOnChange: true);
-        config.AddJsonFile(
-            $"serilog.{context.HostingEnvironment.EnvironmentName}.json",
-            optional: true,
-            reloadOnChange: true);
+        config.AddSerilogConfiguration(context.HostingEnvironment);
     })
     .ConfigureServices((context, services) =>
     {
-        services.AddTradeCaptureDatabase(context.Configuration);
-        services.AddApplicationServices(context.Configuration);
+        services.ConfigureDatabase(context.Configuration);
+        services.ConfigureServices(context.Configuration);
     })
     .UseSerilogConfiguration()
     .UseNServiceBus(context =>
     {
-        return context.ConfigureTradeCaptureEndpoint();
+        return context.ConfigureServiceEndpoint();
     })
     .Build();
 

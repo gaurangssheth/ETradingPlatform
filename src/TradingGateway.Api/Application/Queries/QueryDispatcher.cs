@@ -1,4 +1,4 @@
-﻿namespace OrderService.Application.Queries;
+﻿namespace TradingGateway.Api.Application.Queries;
 
 public sealed class QueryDispatcher : IQueryDispatcher
 {

@@ -6,11 +6,12 @@ Console.WriteLine("RiskService.Grpc is running.");
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddSerilogConfiguration();
+builder.Configuration.AddSerilogConfiguration(builder.Environment);
+builder.UseSerilogConfiguration();
 
 // Add services to the container.
 builder.Services.AddGrpc();
-builder.Services.AddRiskApplicationServices(builder.Configuration);
+builder.Services.ConfigureServices(builder.Configuration);
 
 var app = builder.Build();
 

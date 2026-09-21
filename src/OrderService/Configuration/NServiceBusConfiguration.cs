@@ -7,12 +7,13 @@ using TradingApp.Contracts.Commands;
 using TradingApp.Shared.ConnnectionStringNames;
 using TradingApp.Shared.Messaging;
 using TradingApp.Shared.Messaging.Correlation;
+using TradingApp.Shared.Messaging.Recoverability;
 
 namespace OrderService.Configuration
 {
     public static class NServiceBusConfiguration
     {
-        public static EndpointConfiguration ConfigureOrderServiceEndpoint(this HostBuilderContext context)
+        public static EndpointConfiguration ConfigureServiceEndpoint(this HostBuilderContext context)
         {
             var orderDb = context.Configuration.GetConnectionString(ConnectionStringNames.OrderDb)
             ?? throw new InvalidOperationException($"Missing ConnectionStrings:{ConnectionStringNames.OrderDb}");
@@ -84,7 +85,7 @@ namespace OrderService.Configuration
             });
 
             recoverability.CustomPolicy(
-                OrderServiceRecoverabilityPolicy.Invoke);
+                GrpcRecoverabilityPolicy.Invoke);
 
             endpointConfiguration.Pipeline.Register(
                 behavior: new IncomingCorrelationIdBehavior(),

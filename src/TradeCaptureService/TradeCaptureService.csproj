@@ -40,7 +40,6 @@
   <ItemGroup>
     <Protobuf Include="Protos\greet.proto" GrpcServices="Client" />
     <Protobuf Include="Protos\pricing.proto" GrpcServices="Client" />
-	  <Protobuf Include="Protos\reference_data.proto" GrpcServices="Client" />
-    <Protobuf Include="Protos\reference_data.proto" GrpcServices="Client" />
+	<Protobuf Include="Protos\instrument_reference_data.proto" GrpcServices="Client" />
   </ItemGroup>
 </Project>

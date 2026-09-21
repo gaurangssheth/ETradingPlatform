@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using OrderService.Application.Commands;
-using OrderService.Application.Queries;
+using TradingGateway.Api.Application.Commands;
+using TradingGateway.Api.Application.Queries;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Validation;
 using TradingGateway.Api.Application.Commands.SubmitOrder;
@@ -29,7 +29,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("submit")]
-    public async Task<IActionResult> SubmitOrder([FromBody] SubmitOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<SubmitOrderResult>> SubmitOrder([FromBody] SubmitOrderRequest request, CancellationToken cancellationToken)
     {
         var correlationId = HttpContext.Items[CorrelationConstants.HeaderName]?.ToString()
             ?? HttpContext.TraceIdentifier;

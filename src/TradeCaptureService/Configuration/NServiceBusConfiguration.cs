@@ -11,7 +11,7 @@ namespace TradeCaptureService.Configuration
 {
     public static class NServiceBusConfiguration
     {
-        public static EndpointConfiguration ConfigureTradeCaptureEndpoint(this HostBuilderContext context)
+        public static EndpointConfiguration ConfigureServiceEndpoint(this HostBuilderContext context)
         {
             var tradeCaptureDb = context.Configuration.GetConnectionString("TradeCaptureDb")!;
             var rabbitMqConnection = context.Configuration["RabbitMQ:Connection"]

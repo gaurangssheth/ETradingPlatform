@@ -1,0 +1,21 @@
+.market-watch-skeleton {
+  &__cell {
+    display: inline-block;
+    width: 70%;
+    height: 12px;
+    background: #e7e9ec;
+    border-radius: 2px;
+    animation: market-watch-skeleton-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes market-watch-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}

@@ -5,19 +5,8 @@ namespace TradingGateway.Api.Configuration;
 
 public static class SerilogConfiguration
 {
-    public static WebApplicationBuilder AddTradingGatewaySerilog(
-        this WebApplicationBuilder builder)
+    public static WebApplicationBuilder UseSerilogConfiguration(this WebApplicationBuilder builder)
     {
-        builder.Configuration.AddJsonFile(
-            "serilog.json",
-            optional: false,
-            reloadOnChange: true);
-
-        builder.Configuration.AddJsonFile(
-            $"serilog.{builder.Environment.EnvironmentName}.json",
-            optional: true,
-            reloadOnChange: true);
-
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
             .Enrich.FromLogContext()
@@ -26,6 +15,16 @@ public static class SerilogConfiguration
         builder.Host.UseSerilog();
 
         return builder;
+    }
+
+    public static IConfigurationBuilder AddSerilogConfiguration(this IConfigurationBuilder configuration,
+        IHostEnvironment environment)
+    {
+        configuration
+            .AddJsonFile("serilog.json", optional: false, reloadOnChange: true)
+            .AddJsonFile($"serilog.{environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+
+        return configuration;
     }
 
     public static IApplicationBuilder UseSerilogConfiguration(this IApplicationBuilder app)

@@ -7,7 +7,7 @@ namespace TradingGateway.Api.Configuration
 {
     public static class NServiceBusConfiguration
     {
-        public static EndpointConfiguration ConfigureTradingGatewayEndpoint(
+        public static EndpointConfiguration ConfigureServiceEndpoint(
         this WebApplicationBuilder builder)
         {
             var gatewayDb = builder.Configuration.GetConnectionString("GatewayDb")

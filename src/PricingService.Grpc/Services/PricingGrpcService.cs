@@ -1,6 +1,7 @@
 ﻿using Grpc.Core;
 using PricingService.Grpc.MarketData;
 using Serilog.Context;
+using System.Globalization;
 using TradingApp.MarketData.Contracts;
 using TradingApp.Shared.Correlation;
 using TradingApp.Shared.Messaging.Correlation;
@@ -65,6 +66,41 @@ namespace PricingService.Grpc.Services
                     response.Bid,
                     response.Ask,
                     response.Mid);
+
+                return Task.FromResult(response);
+            }
+        }
+
+        public override Task<GetMarketQuotesResponse> GetMarketQuotes(GetMarketQuotesRequest request, ServerCallContext context)
+        {
+            var correlationId = context.RequestHeaders.GetValue(GrpcCorrelationConstants.MetadataKey);
+            if (string.IsNullOrWhiteSpace(correlationId))
+            {
+                correlationId = "Not_Set";
+            }
+
+            using (LogContext.PushProperty(GrpcCorrelationConstants.MetadataKey, correlationId))
+            {
+                logger.LogInformation("Market quote lookup started. CorrelationId={CorrelationId}",
+                    correlationId);
+
+                var response = new GetMarketQuotesResponse();
+
+                foreach (var quote in marketQuoteCache.GetAll().OrderBy(x => x.Symbol))
+                {
+                    response.Quotes.Add(new MarketQuote
+                    {
+                        Symbol = quote.Symbol,
+                        Bid = quote.Bid.ToString(CultureInfo.InvariantCulture),
+                        Ask = quote.Ask.ToString(CultureInfo.InvariantCulture),
+                        Timestamp = quote.Timestamp.ToString("O")
+                    });
+                }
+
+                logger.LogInformation(
+                    "Market quote lookup completed. QuoteCount={QuoteCount}, CorrelationId={CorrelationId}",
+                    response.Quotes.Count,
+                    correlationId);
 
                 return Task.FromResult(response);
             }

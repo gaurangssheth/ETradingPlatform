@@ -71,5 +71,12 @@ namespace PositionService.Infrastructure.Repositories
                 .Where(p => p.NetQuantity != 0) // Filter positions with non-zero net quantity
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<IReadOnlyList<Position>> GetOpenPositionsByClientIdAsync(string clientId, CancellationToken cancellationToken = default)
+        {
+            return await context.Positions
+                .Where(p => p.NetQuantity != 0m && p.ClientId == clientId)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

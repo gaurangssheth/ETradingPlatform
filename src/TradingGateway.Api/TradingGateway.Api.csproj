@@ -44,7 +44,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.*" />
   </ItemGroup>
 	<ItemGroup>
-		<Protobuf Include="..\PricingService.Grpc\Protos\pricing.proto" GrpcServices="Client" />
+		<Protobuf Include="Protos\position_service.proto" GrpcServices="Client" />
+		<Protobuf Include="Protos\pricing.proto" GrpcServices="Client" />
 	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TradingApp.Contracts\TradingApp.Contracts.csproj" />

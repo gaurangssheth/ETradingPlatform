@@ -1,4 +1,4 @@
-﻿namespace OrderService.Application.Commands;
+﻿namespace TradingGateway.Api.Application.Commands;
 
 public interface ICommandHandler<TCommand, TResult>
 {

@@ -7,16 +7,17 @@ Console.Title = "ETrading - TradingGateway.Api";
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddTradingGatewaySerilog();
+builder.Configuration.AddSerilogConfiguration(builder.Environment);
+builder.UseSerilogConfiguration();
 
 // Swagger
-builder.Services.AddSwaggerConfiguration();
+builder.Services.ConfigureSwagger();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Ui", policy =>
+    options.AddPolicy("TradingWorkstation", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5174", "http://localhost:4200")
+            .WithOrigins("http://localhost:5173", "http://localhost:4200")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -27,7 +28,7 @@ builder.Services.AddCors(options =>
 var gatewayDb = builder.Configuration.GetConnectionString("GatewayDb")
     ?? throw new InvalidOperationException("Missing ConnectionStrings:GatewayDb");
 
-builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.ConfigureServices(builder.Configuration);
 
 // Redis distributed cache
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -41,8 +42,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = builder.Configuration["Redis:InstanceName"];
 });
 
-builder.UseNServiceBus(builder.ConfigureTradingGatewayEndpoint());
+builder.UseNServiceBus(builder.ConfigureServiceEndpoint());
 builder.Services.AddSignalR();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
@@ -52,6 +54,9 @@ app.UseSerilogConfiguration();
 // Enable Swagger
 app.UseSwaggerConfiguration();
 
-app.UseCors("Ui");
+app.UseExceptionHandler();
+
+app.UseCors("TradingWorkstation");
+
 app.MapControllers();
 app.Run();

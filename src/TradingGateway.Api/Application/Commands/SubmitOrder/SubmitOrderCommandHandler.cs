@@ -1,5 +1,5 @@
 ﻿using NServiceBus.TransactionalSession;
-using OrderService.Application.Commands;
+using TradingGateway.Api.Application.Commands;
 using TradingApp.Contracts.Shared;
 using TradingApp.Shared.Validation;
 

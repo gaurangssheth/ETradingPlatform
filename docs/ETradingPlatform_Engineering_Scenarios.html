@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E‑Trading Platform — Engineering Scenarios</title>
+<style>
+:root { color-scheme: light; }
+body {
+  margin: 0;
+  background: #f5f7fa;
+  color: #1f2937;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px 26px 60px;
+  background: #fff;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+h1 { font-size: 30px; margin-top: 0; }
+h2 {
+  font-size: 20px;
+  margin-top: 38px;
+  padding-top: 24px;
+  border-top: 1px solid #d9dee5;
+}
+h3 { margin-top: 28px; }
+p, li { font-size: 15.5px; line-height: 1.68; }
+blockquote {
+  margin: 18px 0;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-left: 4px solid #667085;
+}
+strong { color: #111827; }
+code {
+  background: #f2f4f7;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+pre {
+  background: #f6f8fa;
+  border: 1px solid #dfe3e8;
+  padding: 14px;
+  overflow-x: auto;
+}
+hr { border: 0; border-top: 1px solid #d9dee5; margin: 30px 0; }
+ul { padding-left: 24px; }
+</style>
+</head>
+<body>
+<main>
+<h1>E‑Trading Platform — Engineering Scenarios &amp; Interview Notes</h1>
+<blockquote>
+<p><strong>Purpose</strong></p>
+<p>This document is a running record of engineering situations, design decisions, trade-offs, problems and outcomes from the multi-asset E‑Trading Platform. It is intended for personal bookkeeping, interview preparation, and milestone reviews as the platform grows.</p>
+<p><strong>Interview-use note:</strong> these scenarios describe real technical work and decisions from this platform. They should be presented as work on a multi-asset trading platform without inventing an employer, production incident, team member or client that did not exist. Where a scenario refers to a design discussion, it means the trade-off was deliberately challenged and reviewed before settling on the approach.</p>
+</blockquote>
+<hr />
+<h2>Scenario 1 — Replacing RowVersion with a Custom AccountingVersion</h2>
+<p><strong>Area / where this happened:</strong> Position Service — concurrency between trade accounting and live mark-to-market updates</p>
+<p>In Position Service, the same Position row was being updated for two different reasons. When a real trade arrived, trade accounting changed quantity, average price and realised P&amp;L. Separately, live market-price processing continually updated unrealised P&amp;L for the same position. A conventional SQL <code>rowversion</code> would change for every update, so a harmless unrealised-P&amp;L update could make a genuine trade update look stale and cause unnecessary concurrency failures. I challenged whether the concurrency token should represent <em>any database change</em> or specifically an <em>accounting change</em>. We introduced a custom <code>AccountingVersion</code> concurrency token that is incremented by trade accounting but not by MTM. A stale MTM update can therefore be discarded safely while a concurrent trade conflict is still retried. This made the concurrency rule match the business meaning rather than blindly following the database mechanism.</p>
+<p><strong>Key interview points:</strong> optimistic concurrency, EF Core concurrency tokens, lost updates, business-owned versioning, retry versus discard.</p>
+<hr />
+<h2>Scenario 2 — Treating Stale MTM Differently from a Failed Trade</h2>
+<p><strong>Area / where this happened:</strong> Position Service — concurrency recovery for trades versus MTM</p>
+<p>Once <code>AccountingVersion</code> existed, the next issue was deciding what to do when concurrency actually failed. A trade is an accounting event and must not silently disappear, whereas an MTM update is transient because another market tick will arrive shortly. We therefore allowed trade-side <code>DbUpdateConcurrencyException</code> to escape so the message-processing infrastructure can retry it, but handled a stale MTM concurrency exception by logging and discarding that calculation. The next tick recalculates unrealised P&amp;L from the latest persisted position. This was an important discussion because using the same retry policy for both paths would either risk losing trades or waste resources retrying obsolete market data.</p>
+<p><strong>Key interview points:</strong> differentiated recoverability, eventual correction, domain-driven retry policy, transient versus durable business events.</p>
+<hr />
+<h2>Scenario 3 — Idempotency and Position Accounting in One Transaction</h2>
+<p><strong>Area / where this happened:</strong> Position Service — idempotent TradeCaptured processing and accounting transaction</p>
+<p>Trade events can be delivered more than once, especially in an event-driven system with retries. The Position Service therefore keeps a <code>ProcessedTrades</code> record to detect duplicates. The important design decision was to persist the duplicate marker, position update and position movement through the same Unit of Work/DbContext. If the accounting save fails, the processed marker must not commit independently, otherwise a retry could be incorrectly rejected as a duplicate even though the position was never updated. A unique key protects the duplicate check under concurrency, and the duplicate-key case is handled separately from true accounting concurrency. This made idempotency transactional instead of being only an in-memory check.</p>
+<p><strong>Key interview points:</strong> idempotency, at-least-once delivery, unique constraints, atomicity, Unit of Work, message retries.</p>
+<hr />
+<h2>Scenario 4 — Moving MTM from Polling to Event-Driven Market Data</h2>
+<p><strong>Area / where this happened:</strong> Position Service / Pricing — changing MTM from polling to live market-data events</p>
+<p>The first mark-to-market implementation periodically queried all open positions and then called Pricing Service for prices. That proved the calculation path, but it created unnecessary reads and work even when a symbol had not changed. We then replaced the polling path with an event-driven one: ZeroMQ price ticks enter Position Service, a latest-price buffer coalesces updates, and a background worker recalculates only positions affected by changed symbols. This was a deliberate evolutionary decision rather than starting with the most complex design. It allowed correctness to be proved first, then performance and responsiveness to be improved without rewriting the P&amp;L calculators.</p>
+<p><strong>Key interview points:</strong> evolutionary architecture, polling versus push, event-driven processing, reducing redundant I/O.</p>
+<hr />
+<h2>Scenario 5 — Coalescing Market Ticks Instead of Processing Every Stale Tick</h2>
+<p><strong>Area / where this happened:</strong> Position Service — handling bursts of ZeroMQ price ticks</p>
+<p>Market data can arrive much faster than position accounting needs to persist updates. Processing every EURUSD tick in order would create a backlog where the system spends time calculating prices that are already obsolete. We introduced a <code>PriceTickBuffer</code> backed by a concurrent dictionary containing only the latest tick per symbol, plus a bounded channel used only as a wake-up signal. Newer timestamps replace older ones; workers take the latest unprocessed symbols and calculate from those values. This converts a potentially unbounded stream into “latest state” processing, which is appropriate for MTM where the newest price is what matters.</p>
+<p><strong>Key interview points:</strong> backpressure, coalescing, bounded channels, <code>ConcurrentDictionary</code>, latest-value semantics.</p>
+<hr />
+<h2>Scenario 6 — Parallelising MTM Without Sharing DbContext Across Threads</h2>
+<p><strong>Area / where this happened:</strong> Position Service — parallel MTM processing with EF Core</p>
+<p>After moving to symbol-driven MTM, independent symbols could be processed concurrently. The temptation was to wrap work in <code>Task.Run</code> or share one EF Core <code>DbContext</code>, but <code>DbContext</code> is not thread-safe and the work is primarily asynchronous database I/O. The worker therefore uses <code>Task.WhenAll</code> for different symbols and creates a separate DI scope/DbContext per task. This gives safe concurrency without unnecessary thread-pool scheduling. It also keeps failures isolated to an individual symbol while preserving async I/O all the way down.</p>
+<p><strong>Key interview points:</strong> <code>Task.WhenAll</code> versus <code>Task.Run</code>, async I/O, DI scopes, EF Core thread safety.</p>
+<hr />
+<h2>Scenario 7 — Giving Each Transport a Specific Responsibility</h2>
+<p><strong>Area / where this happened:</strong> Platform architecture — choosing REST, gRPC, messaging, ZeroMQ and SignalR for different jobs</p>
+<p>A recurring architecture discussion was whether one communication technology should be used everywhere. We deliberately separated concerns instead. Browser clients use REST/JSON through <code>TradingGateway.Api</code>; internal request/response calls use gRPC; durable business commands/events use NServiceBus with RabbitMQ; high-frequency market ticks use ZeroMQ; and SignalR is reserved for pushing live updates to browser workstations when that UI milestone is reached. The decision was based on communication semantics rather than technology preference. For example, ZeroMQ is useful for fast streaming but is not a replacement for durable trade messaging, while gRPC is efficient internally but is not the browser-facing contract.</p>
+<p><strong>Key interview points:</strong> REST, gRPC, messaging, ZeroMQ, SignalR/WebSockets, choosing transports by semantics.</p>
+<hr />
+<h2>Scenario 8 — Using gRPC for Internal Service Boundaries</h2>
+<p><strong>Area / where this happened:</strong> TradingGateway.Api and internal services — browser REST boundary with internal gRPC</p>
+<p>The external workstation needs a stable HTTP/JSON boundary, but the backend services also need strongly typed, efficient service-to-service communication. The Gateway therefore exposes REST to React/Angular and uses generated gRPC clients internally for services such as Position and Pricing. Position Service was converted to the Web SDK so it could continue hosting background workers and NServiceBus handlers while also exposing a gRPC server. This avoided implementation-project references between services and preserved service ownership. Correlation metadata is propagated through the gRPC boundary for traceability.</p>
+<p><strong>Key interview points:</strong> API gateway, protobuf contracts, generated clients, internal versus external APIs, loose coupling.</p>
+<hr />
+<h2>Scenario 9 — Avoiding Floating-Point Money Values in Protobuf</h2>
+<p><strong>Area / where this happened:</strong> Position Service ↔ TradingGateway.Api — transporting decimal accounting values over protobuf</p>
+<p>When the position read API was exposed over gRPC, accounting values such as average price and P&amp;L needed to cross the protobuf boundary. Using protobuf <code>double</code> would introduce binary floating-point representation into values that are held as <code>decimal</code> in .NET. We chose string transport fields for these decimal accounting values and parse/format them using invariant culture on each side. It is slightly more verbose than using <code>double</code>, but it preserves the decimal representation expected by the trading/accounting domain and avoids accidental rounding differences at the service boundary.</p>
+<p><strong>Key interview points:</strong> decimal versus double, protobuf limitations, invariant culture, financial precision.</p>
+<hr />
+<h2>Scenario 10 — Building a CQRS Read Path Without Overengineering</h2>
+<p><strong>Area / where this happened:</strong> Position Service and TradingGateway.Api — CQRS read path for open positions</p>
+<p>The Gateway originally had a command-oriented path for order submission, but the workstation also needed efficient read endpoints such as open positions by client. We introduced explicit query objects and <code>IQueryHandler&lt;TQuery,TResult&gt;</code> / query-dispatcher abstractions rather than mixing reads into command handlers. Position Service maps its domain/entity data into a <code>PositionSummaryReadModel</code>, then gRPC transports that to the Gateway, where a REST response model is returned to the browser. The design keeps the read model focused on what the UI needs without turning the whole platform into full event sourcing.</p>
+<p><strong>Key interview points:</strong> CQRS, query handlers, read models, avoiding unnecessary event-sourcing complexity.</p>
+<hr />
+<h2>Scenario 11 — Implementing Working Limit Orders as a Saga</h2>
+<p><strong>Area / where this happened:</strong> Order Service — lifecycle of working limit orders</p>
+<p>A market order can execute immediately, but a limit order may remain working until a price condition becomes true. We modelled that as lifecycle/state rather than trying to keep an HTTP request open. Order Service owns the working-order saga, periodically evaluates executable prices, and applies the market rule: a Buy triggers when Ask is less than or equal to the limit; a Sell triggers when Bid is greater than or equal to the limit. Once triggered, the chosen execution price is carried forward so Trade Capture does not reprice it later. This kept order lifecycle ownership in one service while still using Pricing and Trade Capture for their specialised responsibilities.</p>
+<p><strong>Key interview points:</strong> saga/state machine, limit-order rules, asynchronous workflow, preventing repricing races.</p>
+<hr />
+<h2>Scenario 12 — Keeping Execution Pricing Rules at the Correct Boundary</h2>
+<p><strong>Area / where this happened:</strong> Pricing / Order / Trade Capture — deciding and preserving the executable price</p>
+<p>The platform distinguishes streamed market data from an executable price. For execution, a Buy trades at the Ask and a Sell trades at the Bid. That rule is deliberately explicit at the pricing/execution boundary rather than being scattered through controllers or UI code. When a working limit order triggers, its already-selected executable price is supplied to Trade Capture so another price lookup cannot change the economic result between trigger and booking. This is a small rule with important architectural consequences because it defines where market data becomes a tradeable decision.</p>
+<p><strong>Key interview points:</strong> bid/ask, executable price, domain rule placement, race avoidance.</p>
+<hr />
+<h2>Scenario 13 — Strategy Pattern for Multi-Asset Notional and P&amp;L</h2>
+<p><strong>Area / where this happened:</strong> Trade Capture and Position accounting — asset-specific notional and P&amp;L calculations</p>
+<p>FX, equities and bonds share a trading workflow but do not share identical accounting mathematics. Rather than filling handlers with <code>switch</code> statements, the platform uses strategy interfaces and resolvers. FX/equity notional uses quantity multiplied by price, while bond values respect quotation per hundred nominal; realised/unrealised P&amp;L likewise has asset-specific strategies. Each calculator is linked to the <code>AssetClass</code> it handles, and the resolver selects the correct implementation. This made the code open to another asset-class calculation without repeatedly modifying a central handler.</p>
+<p><strong>Key interview points:</strong> Strategy pattern, Open/Closed Principle, resolver, asset-class-specific mathematics.</p>
+<hr />
+<h2>Scenario 14 — Modelling Reference Data for Different Asset Classes</h2>
+<p><strong>Area / where this happened:</strong> Reference Data Service — modelling FX, Equity and Bond instruments</p>
+<p>A single multi-asset application still needs asset-specific instrument attributes. The Reference Data Service therefore exposes a common instrument definition plus distinct FX, Equity and Bond details. Protobuf <code>oneof</code> is used so the transport contract can carry exactly one relevant detail set, while stable instrument IDs allow trades and positions to refer to instruments independently of display symbols. This avoided forcing every asset into one oversized flat structure full of irrelevant nullable fields.</p>
+<p><strong>Key interview points:</strong> polymorphic contracts, protobuf <code>oneof</code>, stable identifiers, multi-asset modelling.</p>
+<hr />
+<h2>Scenario 15 — Building a Generic Validation Framework Instead of Repeating Rules</h2>
+<p><strong>Area / where this happened:</strong> Risk / order validation — reusable framework for independent business rules</p>
+<p>As order/risk requirements grew, individual handlers risked accumulating duplicated validation logic. We introduced a generic validation approach where individual rules are independently testable and a factory/resolver selects the appropriate validations for the request. This allowed rules such as maximum quantity, supported symbol, market hours, client whitelist and later cross-field validation to be composed without hard-coding every combination into a handler. The framework gave us one consistent way to run validation and report failures, while each business rule remained explicit, independently testable and easy to add.</p>
+<p><strong>Key interview points:</strong> Factory/Strategy-style resolution, composable validation, SRP, cross-field rules, avoiding generic-framework overreach.</p>
+<hr />
+<h2>Scenario 16 — Using SQLite Carefully in xUnit/EF Core Tests</h2>
+<p><strong>Area / where this happened:</strong> Persistence tests — xUnit, EF Core, SQL Server model and SQLite test provider</p>
+<p>EF Core tests needed to validate more than in-memory object behaviour, including relationships and database constraints. SQLite was useful because it provides a relational database during tests, but SQL Server and SQLite do not support identical constraint syntax. We added SQLite-specific test configuration where necessary and used <code>EnsureCreated</code> in the test setup so tests exercised the relational model without depending on production migrations. This highlighted an important lesson: a lightweight test database is valuable, but provider differences must be explicit so a passing SQLite test is not assumed to prove every SQL Server behaviour.</p>
+<p><strong>Key interview points:</strong> EF Core testing, SQLite provider differences, constraints, <code>EnsureCreated</code>, integration-test boundaries.</p>
+<hr />
+<h2>Scenario 17 — Preserving Correlation IDs Across HTTP, gRPC and Messaging</h2>
+<p><strong>Area / where this happened:</strong> Gateway and service boundaries — end-to-end correlation IDs</p>
+<p>Once an order crosses multiple services, diagnosing a failure from one log entry is difficult unless the original request identity survives each boundary. The Gateway accepts/creates an HTTP correlation ID, gRPC clients pass it as metadata, and relevant services/logging retain it. We also distinguished request correlation from background processing: an MTM calculation triggered by a new market price should not pretend to belong to an old trade correlation ID. This keeps tracing meaningful instead of simply copying the last available ID everywhere.</p>
+<p><strong>Key interview points:</strong> distributed tracing concepts, metadata propagation, correlation boundaries, observability.</p>
+<hr />
+<h2>Scenario 18 — Separating Current Position State from Movement Audit</h2>
+<p><strong>Area / where this happened:</strong> Position Service — current position state and movement/audit history</p>
+<p>A position needs a fast current view, but trading/accounting also requires explaining how that state was reached. The Position Service therefore maintains the current <code>Position</code> and separate <code>PositionMovement</code> records containing previous/new quantity and price, signed quantity and realised-P&amp;L change. We worked through open, add, reduce, close and flip scenarios rather than assuming one arithmetic formula covered all cases. This design provides both efficient current-state reads and an auditable sequence of accounting movements.</p>
+<p><strong>Key interview points:</strong> audit trail, position accounting, open/add/reduce/close/flip, current state versus history.</p>
+<hr />
+<h2>Scenario 19 — React Tests in Both jsdom and Real Chromium</h2>
+<p><strong>Area / where this happened:</strong> React workstation — Vitest tests in jsdom and real Chromium</p>
+<p>For the React workstation I wanted fast tests but also a realistic browser debugging experience. Vitest/jsdom is good for quick unit/component feedback, while Vitest Browser Mode with Playwright/Chromium gives real DOM/browser behaviour and Chrome DevTools debugging. The complication was that MSW has separate Node and browser runtimes: importing <code>msw/node</code> into a shared setup caused <code>node:http</code> errors in Chromium. We split unit and browser setup files and introduced a small runtime-neutral MSW test controller so the same spec can override handlers whether it runs under jsdom or Chromium. This gave us speed for normal runs without giving up real-browser debugging.</p>
+<p><strong>Key interview points:</strong> Vitest, jsdom, Chromium, Playwright, MSW, environment-specific setup, debugging transformed TypeScript.</p>
+<hr />
+<h2>Scenario 20 — Making Mock APIs Useful for Development, Not Just Tests</h2>
+<p><strong>Area / where this happened:</strong> React workstation — MSW mocks shared by development and tests</p>
+<p>The frontend should remain developable even when backend services are not running. Rather than embedding fake arrays inside React components, we use MSW handlers owned by each feature, for example Positions has its own mock data and handlers. A configurable <code>VITE_API_MODE</code> allows development to run against the real Gateway or mocked HTTP contracts, while QA/UAT/production are intended to use real backend APIs. The same handlers can also drive tests, so mocked behaviour does not diverge into a second set of test-only fixtures. This preserves the real <code>positionApi → httpClient</code> path even when the response is mocked.</p>
+<p><strong>Key interview points:</strong> MSW, contract-oriented frontend development, environment configuration, avoiding hard-coded component mocks.</p>
+<hr />
+<h2>Scenario 21 — Building a Shared HTTP Layer Rather Than Calling Fetch Everywhere</h2>
+<p><strong>Area / where this happened:</strong> React workstation — Axios client, environments and interceptors</p>
+<p>As soon as the workstation needed environment-specific URLs, correlation IDs, timeout handling and consistent errors, direct <code>fetch</code> calls in components would have duplicated infrastructure concerns. React uses a shared Axios instance configured from Vite environment files for development, QA, UAT and production. Request/response interceptors are kept in separate files so correlation and generic transport errors remain independent concerns. Feature services such as <code>positionApi</code> use the shared client, while components deal with business-facing loading/error state. React continues to use <code>Promise</code>/<code>async</code>/<code>await</code> for one-shot HTTP calls rather than introducing RxJS unnecessarily.</p>
+<p><strong>Key interview points:</strong> Axios interceptors, environment configuration, Promise/async-await, separation of transport and feature concerns.</p>
+<hr />
+<h2>Scenario 22 — Preventing Notification Storms Centrally</h2>
+<p><strong>Area / where this happened:</strong> React workstation — avoiding duplicate error notifications</p>
+<p>During development, React Strict Mode can deliberately execute effects more than once, and an HTTP error could also be reported both by a generic interceptor and by a feature component. That produced multiple identical red toasts for one logical problem. Instead of disabling Strict Mode or adding flags to individual components, we removed duplicate feature-level transport notifications and gave React-Toastify deterministic <code>toastId</code> values based on notification type/message. Duplicate active notifications are therefore suppressed centrally, while the table keeps a persistent inline error state. This solved the user experience problem without hiding useful development behaviour.</p>
+<p><strong>Key interview points:</strong> Strict Mode, centralised cross-cutting concerns, toast deduplication, transient notification versus persistent inline state.</p>
+<hr />
+<h2>Scenario 23 — Keeping the React Codebase Feature-Oriented as It Grows</h2>
+<p><strong>Area / where this happened:</strong> React workstation — feature-based folder structure as the UI grows</p>
+<p>A flat <code>components</code> and <code>models</code> structure was acceptable for the first screen but would become difficult to navigate once Positions, Orders, Trades, Market and Risk all grew. We moved toward feature ownership: each feature contains its components, models, services, state and mocks, while genuinely reusable elements such as navigation, HTTP infrastructure and common table styles live under <code>shared</code>. Route-level <code>pages</code> compose features rather than owning business logic. This also prepares the application for Redux Toolkit feature slices without creating one giant global store folder.</p>
+<p><strong>Key interview points:</strong> feature-based frontend architecture, cohesion, shared versus feature-owned code, maintainability.</p>
+<hr />
+<h2>Scenario 24 — Designing the Same Workstation in React and Angular</h2>
+<p><strong>Area / where this happened:</strong> Frontend architecture — implementing the same workstation in React and Angular</p>
+<p>The workstation is intentionally being built in both React and Angular against the same Gateway contracts. The objective is not to duplicate backend logic but to compare frontend architecture: React uses hooks, Promise-based API calls and later Redux Toolkit feature slices, while Angular can use HttpClient/RxJS, standalone components, Signals/NgRx and newer forms capabilities. Shared business behaviour and API contracts remain identical, allowing differences in state management, testing and rendering to be evaluated fairly. This is also useful for understanding when framework conventions genuinely help rather than simply translating syntax line by line.</p>
+<p><strong>Key interview points:</strong> React versus Angular, framework trade-offs, shared API contract, state management, test strategy.</p>
+<hr />
+<h2>Scenario 25 — Deliberately Deferring SignalR Until There Was Something Worth Pushing</h2>
+<p><strong>Area / where this happened:</strong> Frontend / real-time architecture — deciding when SignalR should be introduced</p>
+<p>It would have been easy to introduce SignalR as soon as the UI project was created, but the platform first needed stable read APIs and a meaningful workstation layout. Live market data already flows internally over ZeroMQ; SignalR has a different responsibility — pushing selected server-side changes to browser clients. By deferring SignalR until the REST read path and UI components exist, we avoid building a real-time channel without clear messages, subscription rules or reconnect behaviour. This is an example of resisting premature infrastructure while still preserving a clear future architecture.</p>
+<p><strong>Key interview points:</strong> YAGNI versus roadmap awareness, incremental delivery, SignalR responsibility, avoiding premature complexity.</p>
+<hr />
+<h2>Scenario 26 — Using Unit of Work to Keep Persistence Behind an Application Boundary</h2>
+<p><strong>Area / where this happened:</strong> Position Service — persistence boundary across Positions, ProcessedTrades and PositionMovements</p>
+<p>In Position Service, a trade update can touch Positions, ProcessedTrades and PositionMovements as one accounting operation. We introduced an explicit <code>IUnitOfWork</code> so the application layer has one place to access those repositories and one <code>SaveChangesAsync</code> transaction boundary. Today the implementation uses EF Core, but the application code is not forced to know that every persistence operation must always be EF-based; a repository implementation could later use Dapper or another data-access approach where that makes sense. The main value is a clear persistence boundary and one atomic save for related accounting changes.</p>
+<p><strong>Key interview points:</strong> Unit of Work, repository boundary, EF Core, Dapper, transaction boundary, persistence abstraction.</p>
+<hr />
+<h2>Scenario 27 — Recoverability Based on gRPC Status Rather Than Retrying Everything</h2>
+<p><strong>Area / where this happened:</strong> Service-to-service resilience — deciding which gRPC failures should retry</p>
+<p>A distributed service can fail because it is temporarily unavailable, but it can also reject a request permanently because it is invalid or unauthorised. Treating every <code>RpcException</code> as transient would cause pointless retries. We therefore explored recoverability rules that distinguish permanent gRPC statuses such as <code>InvalidArgument</code>, <code>PermissionDenied</code> and <code>Unauthenticated</code> from failures that may deserve retry. The broader lesson was to classify errors by semantics rather than by exception type alone.</p>
+<p><strong>Key interview points:</strong> gRPC status codes, transient/permanent failures, retry policy, error queues.</p>
+<hr />
+<h2>Scenario 28 — Keeping Domain Value Objects and Database Constraints Aligned</h2>
+<p><strong>Area / where this happened:</strong> Trade persistence — domain value objects, EF conversions and database constraints</p>
+<p>The trade model uses concepts such as currency code, side, order type, status, asset class and stable instrument ID that should not accept arbitrary values. <code>CurrencyCode</code> was modelled as a value object and mapped through an EF Core conversion, while database constraints provide a second line of defence for persisted data. Test configuration had to account for SQLite syntax differences. The design balances expressive domain code with database-level integrity rather than assuming validation at one layer is enough.</p>
+<p><strong>Key interview points:</strong> value objects, EF Core conversions, check constraints, defence in depth.</p>
+<hr />
+<h1>Future Scenarios to Capture as Milestones Are Reached</h1>
+<p>These are intentionally <strong>not yet written as achievements</strong>. Revisit this document when each milestone is actually implemented and replace the placeholder with the real problem, alternatives considered, decision and outcome.</p>
+<h3>Future A — SignalR live workstation updates</h3>
+<p>Capture subscription design, reconnect behaviour, price/position update frequency, backpressure and how REST snapshots interact with live deltas.</p>
+<h3>Future B — React Redux Toolkit feature state</h3>
+<p>Capture why local component state stopped being sufficient, how positions/orders/market slices are separated, async request handling, selectors and avoidance of duplicated server state.</p>
+<h3>Future C — Angular NgRx and Signals</h3>
+<p>Capture the equivalent Angular design and where Signals, computed state, effects and NgRx each belong. Avoid forcing NgRx into state that is purely local.</p>
+<h3>Future D — Angular Signal Forms / modern forms approach</h3>
+<p>When the order ticket is mature, record how validation, dynamic Buy/Sell/Limit fields and server validation are handled, and compare it with the React form approach.</p>
+<h3>Future E — RFC 7807 Problem Details</h3>
+<p>Introduce a consistent Gateway error contract for validation, business rejection and unexpected errors. Record how React and Angular map it to inline field errors versus global notifications.</p>
+<h3>Future F — Authentication and authorisation</h3>
+<p>Capture identity provider choice, access tokens/cookies, client/trader/risk-manager roles, backend enforcement and why hiding a navigation item is not security.</p>
+<h3>Future G — FIX Gateway</h3>
+<p>Capture where FIX belongs relative to the HTTP Gateway, mapping FIX messages into internal commands, session management, sequence numbers, acknowledgements/rejects and idempotency.</p>
+<h3>Future H — Multi-liquidity-provider pricing and aggregation</h3>
+<p>Capture LP connections, stale quote detection, best bid/offer selection, spread/markup rules, venue attribution and whether a dedicated Market Data Service becomes justified.</p>
+<h3>Future I — Cloud deployment</h3>
+<p>Capture the first hosted topology, environment/secrets management, SQL/message broker choices, TLS, observability, cost constraints and what was changed to make locally distributed services cloud-ready.</p>
+<h3>Future J — External market-data provider subscription</h3>
+<p>Capture provider selection, free/demo versus paid feed limitations, throttling/licensing, normalisation into the internal <code>PriceTick</code> contract and fallback behaviour.</p>
+<h3>Future K — Resilience and observability</h3>
+<p>Capture structured logging, distributed trace IDs, health/readiness if actually needed, metrics, retry/circuit-breaker decisions and how failures are diagnosed across Gateway → gRPC → messaging.</p>
+<h3>Future L — Performance/load testing</h3>
+<p>Capture measured order throughput, market-tick rate, position-update latency, database bottlenecks and the changes made from evidence rather than assumption.</p>
+<hr />
+<h1>Milestone Review Template</h1>
+<p>When a meaningful milestone is completed, add a new scenario using this structure:</p>
+<pre><code class="language-text">Scenario N — Short Decision Title
+
+Context / problem:
+What business or technical behaviour was required, and what failed or became limiting?
+
+Challenge / discussion:
+What assumptions were challenged? What alternatives were considered and what trade-offs mattered?
+
+Decision:
+What was chosen and why was it appropriate for this platform at that stage?
+
+Implementation:
+Name the important service, framework feature, pattern or algorithm. Keep this short.
+
+Outcome:
+What became safer, simpler, faster, more testable or easier to operate? Add measurements when available.
+
+Interview hooks:
+Concurrency / distributed systems / trading rule / testing / leadership / mentoring / negotiation / performance / frontend architecture / cloud etc.
+</code></pre>
+<hr />
+<h1>Interview Framing Guidance</h1>
+<p>A useful answer does not need to pretend every scenario was a production outage. A strong structure is:</p>
+<p><strong>Situation → technical/business tension → alternatives → decision → implementation → consequence → what I would change at larger scale.</strong></p>
+<p>Examples of legitimate phrasing:</p>
+<ul>
+<li>“While building a multi-asset trading platform, I found that…”</li>
+<li>“The initial design worked functionally, but once MTM and trade accounting ran concurrently…”</li>
+<li>“I challenged whether a database rowversion represented the business concurrency rule we actually needed…”</li>
+<li>“We deliberately kept SignalR out of the first phase because there was not yet a stable browser subscription model…”</li>
+<li>“I first implemented polling to prove correctness, then replaced it with event-driven processing once the behaviour was understood…”</li>
+</ul>
+<p>Avoid claiming an employer, production client, team discussion or incident that did not happen. The value in these stories is the engineering reasoning and the working implementation.</p>
+<hr />
+<p><em>Last updated: 2026-09-15. Continue adding scenarios as each meaningful architecture, trading-domain, testing, frontend or cloud milestone is completed.</em></p>
+
+</main>
+</body>
+</html>

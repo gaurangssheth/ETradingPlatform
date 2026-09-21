@@ -1,0 +1,29 @@
+.open-positions-skeleton__cell {
+  display: block;
+  width: 70%;
+  height: 1rem;
+
+  background: linear-gradient(90deg, #f1f1f1 25%, #e5e7eb 37%, #f1f1f1 63%);
+
+  background-size: 400% 100%;
+  animation: open-positions-skeleton-shimmer 1.4s ease infinite;
+}
+
+.symbol-column .open-positions-skeleton__cell {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.numeric-column .open-positions-skeleton__cell {
+  margin-left: auto;
+}
+
+@keyframes open-positions-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}

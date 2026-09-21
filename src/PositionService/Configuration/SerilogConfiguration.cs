@@ -10,14 +10,26 @@ namespace PositionService.Configuration
 {
     public static class SerilogConfiguration
     {
-        public static IHostBuilder UseSerilogConfiguration(this IHostBuilder hostBuilder)
+        public static WebApplicationBuilder UseSerilogConfiguration(this WebApplicationBuilder builder)
         {
-            return hostBuilder.UseSerilog((context, services, configuration) =>
-            {
-                configuration
-                    .ReadFrom.Configuration(context.Configuration)
-                    .Enrich.FromLogContext();
-            });
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(builder.Configuration)
+                .Enrich.FromLogContext()
+                .CreateLogger();
+
+            builder.Host.UseSerilog();
+
+            return builder;
+        }
+
+        public static IConfigurationBuilder AddSerilogConfiguration(this IConfigurationBuilder configuration,
+            IHostEnvironment environment)
+        {
+            configuration
+                .AddJsonFile("serilog.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"serilog.{environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+
+            return configuration;
         }
     }
 }

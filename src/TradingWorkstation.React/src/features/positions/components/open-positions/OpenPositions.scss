@@ -1,0 +1,22 @@
+.open-positions {
+  margin-top: 1rem;
+  border-top: 1px solid #dfe3e8;
+  border-bottom: 1px solid #dfe3e8;
+  background: #ffffff;
+
+  &__header {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #dfe3e8;
+
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: left;
+    }
+  }
+
+  &__table-wrapper {
+    overflow-x: auto;
+  }
+}

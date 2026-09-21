@@ -12,11 +12,11 @@ namespace PositionService.Configuration
 {
     public static class NServiceBusConfiguration
     {
-        public static EndpointConfiguration ConfigurePoisitionServiceEndpoint(this HostBuilderContext context)
+        public static EndpointConfiguration ConfigureServiceEndpoint(this WebApplicationBuilder builder)
         {
-            var positionDb = context.Configuration.GetConnectionString(ConnectionStringNames.PositionDb)
+            var positionDb = builder.Configuration.GetConnectionString(ConnectionStringNames.PositionDb)
             ?? throw new InvalidOperationException($"Missing ConnectionStrings:{ConnectionStringNames.PositionDb}");
-            var rabbitMqConnection = context.Configuration["RabbitMQ:Connection"]
+            var rabbitMqConnection = builder.Configuration["RabbitMQ:Connection"]
             ?? throw new InvalidOperationException("Missing RabbitMQ:Connection");
 
             var endpointConfiguration = new EndpointConfiguration(EndpointNames.PositionService);
@@ -25,7 +25,7 @@ namespace PositionService.Configuration
 
             var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
 
-            transport.ConnectionString(context.Configuration["RabbitMQ:Connection"]
+            transport.ConnectionString(builder.Configuration["RabbitMQ:Connection"]
                 ?? throw new InvalidOperationException("Missing RabbitMQ:Connection"));
 
             transport.UseConventionalRoutingTopology(QueueType.Quorum);

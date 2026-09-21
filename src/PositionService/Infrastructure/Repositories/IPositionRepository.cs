@@ -14,5 +14,8 @@ namespace PositionService.Infrastructure.Repositories
         Task<IReadOnlyList<Position>> GetOpenPositionsAsync(CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<Position>> GetOpenPositionsBySymbolAsync(string symbol, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Position>> GetOpenPositionsByClientIdAsync(string clientId, CancellationToken cancellationToken = default);
+
     }
 }

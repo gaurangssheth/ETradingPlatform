@@ -1,0 +1,6 @@
+// src/testing/vitest.setup.ts
+import "@testing-library/jest-dom/vitest";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});

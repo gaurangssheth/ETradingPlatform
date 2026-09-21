@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TradingApp.Shared.Messaging.Recoverability;
 
 namespace OrderService.Tests.Configuration
 {
@@ -26,7 +27,7 @@ namespace OrderService.Tests.Configuration
                     ))
                 );
 
-            var action = OrderServiceRecoverabilityPolicy.Invoke(config, context);
+            var action = GrpcRecoverabilityPolicy.Invoke(config, context);
 
             action.Should().BeOfType<MoveToError>();
 

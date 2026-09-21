@@ -19,5 +19,10 @@ namespace PricingService.Grpc.MarketData
             ArgumentNullException.ThrowIfNull(symbol, nameof(symbol));
             return this.quotes.TryGetValue(symbol, out tick);
         }
+
+        public IReadOnlyList<PriceTick> GetAll()
+        {
+            return quotes.Values.ToList();
+        }
     }
 }
