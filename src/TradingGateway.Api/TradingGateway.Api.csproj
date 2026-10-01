@@ -6,16 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Data\**" />
-    <Compile Remove="Hubs\**" />
     <Compile Remove="Services\**" />
     <Content Remove="Data\**" />
-    <Content Remove="Hubs\**" />
     <Content Remove="Services\**" />
     <EmbeddedResource Remove="Data\**" />
-    <EmbeddedResource Remove="Hubs\**" />
     <EmbeddedResource Remove="Services\**" />
     <None Remove="Data\**" />
-    <None Remove="Hubs\**" />
     <None Remove="Services\**" />
   </ItemGroup>
   <ItemGroup>

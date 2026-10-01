@@ -20,9 +20,15 @@ public sealed class TestServerCallContext : ServerCallContext
         return new TestServerCallContext(requestHeaders);
     }
 
-    private TestServerCallContext(Metadata? requestHeaders = null)
+    public static ServerCallContext Create(Metadata requestHeaders, CancellationToken cancellationToken)
+    {
+        return new TestServerCallContext(requestHeaders, cancellationToken);
+    }
+
+    private TestServerCallContext(Metadata? requestHeaders = null, CancellationToken cancellationToken = default)
     {
         this.requestHeaders = requestHeaders ?? new Metadata();
+        this.cancellationToken = cancellationToken;
     }
 
     protected override string MethodCore => "GetPrice";

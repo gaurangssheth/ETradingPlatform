@@ -100,3 +100,5 @@ DELETE FROM dbo.Orders;
 PRINT 'Phase 1 test data cleared.';
 
 
+to delete bin / obj folders
+find . -name "*.csproj" -print0 | while IFS= read -r -d '' project; do   dir="$(dirname "$project")";   rm -rf "$dir/bin" "$dir/obj"; done

@@ -7,6 +7,9 @@ package pricing;
 service Pricing {
 	rpc GetPrice (GetPriceRequest) returns (GetPriceResponse);
 	rpc GetMarketQuotes (GetMarketQuotesRequest) returns (GetMarketQuotesResponse);
+	rpc StreamMarketQuotes (GetMarketQuotesRequest) returns (stream MarketQuote);
+	rpc GetMarketCandles (GetMarketCandlesRequest) returns (GetMarketCandlesResponse);
+	rpc StreamMarketCandles (StreamMarketCandlesRequest) returns (stream MarketCandle);
 }
 
 message GetPriceRequest {
@@ -32,4 +35,24 @@ message MarketQuote {
 
 message GetMarketQuotesResponse {
 	repeated MarketQuote quotes = 1;
+}
+
+message GetMarketCandlesRequest {
+  string symbol = 1;
+}
+
+message MarketCandle {
+  string symbol = 1;
+  string startTime = 2;
+  string open = 3;
+  string high = 4;
+  string low = 5;
+  string close = 6;
+}
+
+message GetMarketCandlesResponse {
+  repeated MarketCandle candles = 1;
+}
+
+message StreamMarketCandlesRequest {
 }

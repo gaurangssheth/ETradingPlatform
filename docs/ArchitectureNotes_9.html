@@ -1,0 +1,1150 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>ETradingPlatform Architecture Notes</title><style>body{margin:0;background:#f5f7fa;color:#1f2937;font-family:Segoe UI,Arial,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 26px 60px;background:#fff;min-height:100vh;box-sizing:border-box}
+h1{font-size:30px;margin-top:0}h2{font-size:20px;margin-top:38px;padding-top:24px;border-top:1px solid #d9dee5}
+h3{font-size:17px;margin-top:28px}p,li{font-size:15.5px;line-height:1.68}
+blockquote{margin:18px 0;padding:12px 18px;background:#f8fafc;border-left:4px solid #667085}
+code{background:#f2f4f7;padding:2px 5px;border-radius:3px}
+pre{background:#f6f8fa;border:1px solid #dfe3e8;padding:14px;overflow-x:auto}
+pre code{background:transparent;padding:0}strong{color:#111827}</style></head><body><main><h1>ETradingPlatform Architecture Notes</h1>
+<p><em>Last updated: 1 October 2026</em></p>
+<h2>1. Purpose</h2>
+<p>ETradingPlatform is a .NET 8 multi-service trading platform used to learn and implement real trading-system concepts through working software.</p>
+<p>Preferred learning/design sequence:</p>
+<p><strong>business/trading meaning → market/math rule → architecture/design decision → C# implementation</strong></p>
+<p>Current asset classes:</p>
+<ul>
+<li>FX</li>
+<li>Equity</li>
+<li>Fixed Income</li>
+</ul>
+<p>Current order types:</p>
+<ul>
+<li>Market</li>
+<li>Limit</li>
+</ul>
+<p>The platform currently covers order submission, risk checks, reference data, executable pricing, trade capture, position accounting, realised P&amp;L, unrealised P&amp;L / mark-to-market, working limit orders, live quote/candle streaming to the browser, selected-instrument candlestick charts, correlation tracing and optimistic concurrency protection.</p>
+<hr />
+<h2>2. Main services</h2>
+<h3>TradingGateway.Api</h3>
+<p>HTTP entry point for client requests.</p>
+<p>Responsibilities:</p>
+<ul>
+<li>Accept order requests.</li>
+<li>Create/read the <code>X-Correlation-Id</code> HTTP header.</li>
+<li>Propagate correlation through the trading workflow.</li>
+<li>Submit commands/messages into the platform.</li>
+</ul>
+<p>Important rule: <code>X-Correlation-Id</code> belongs in the HTTP header, not in the JSON body.</p>
+<h3>OrderService</h3>
+<p>Owns order lifecycle.</p>
+<p>Responsibilities:</p>
+<ul>
+<li>Validate and accept/reject submitted orders.</li>
+<li>Call RiskService.</li>
+<li>Handle Market vs Limit order behaviour.</li>
+<li>Own working Limit Order Saga state.</li>
+<li>Check current executable quote for a working limit order.</li>
+<li>Trigger execution once the market crosses the limit.</li>
+<li>Mark the order Filled when <code>TradeCaptured</code> returns.</li>
+</ul>
+<p>Market order flow:</p>
+<pre><code class="language-text">SubmitOrder
+→ OrderService
+→ Risk approved
+→ OrderAccepted
+→ TradeCaptureService
+</code></pre>
+<p>Limit order flow:</p>
+<pre><code class="language-text">SubmitOrder
+→ OrderService
+→ Risk approved
+→ OrderAccepted
+→ StartLimitOrder
+→ LimitOrderSaga
+→ Working
+→ quote checks
+→ Triggered
+→ ExecuteLimitOrder
+→ TradeCaptureService
+→ TradeCaptured
+→ Filled
+</code></pre>
+<p>Limit trigger rule:</p>
+<pre><code class="language-text">Buy  → Ask &lt;= LimitPrice
+Sell → Bid &gt;= LimitPrice
+</code></pre>
+<h3>RiskService</h3>
+<p>Owns pre-trade risk validation.</p>
+<p>Current examples include maximum quantity, allowed symbols and known-client validation.</p>
+<h3>ReferenceDataService</h3>
+<p>Owns stable instrument identity and definitions.</p>
+<p>Common fields include InstrumentId, Symbol, AssetClass, TradingCurrency, TickSize, LotSize and IsTradable.</p>
+<p>Reference InstrumentIds used during development:</p>
+<pre><code class="language-text">EURUSD       11111111-1111-1111-1111-111111111111
+AAPL         22222222-2222-2222-2222-222222222222
+GB00TEST1234 33333333-3333-3333-3333-333333333333
+</code></pre>
+<h3>PricingService</h3>
+<p>Owns the latest executable market quote and exposes it through gRPC.</p>
+<p>Live market-data path:</p>
+<pre><code class="language-text">MarketDataSimulator
+→ ZeroMQ PUB
+→ PricingService ZeroMQ SUB
+→ MarketQuoteCache
+→ PricingGrpcService.GetPrice
+</code></pre>
+<p>Important distinction:</p>
+<pre><code class="language-text">PriceTick
+= live market-data event
+= Symbol, Bid, Ask, Timestamp
+
+PriceQuote
+= synchronous gRPC snapshot returned by PricingService
+</code></pre>
+<p>Do not rename both concepts to the same thing.</p>
+<h4>MarketQuoteCache</h4>
+<p>PricingService keeps the latest tick per symbol using <code>ConcurrentDictionary&lt;string, PriceTick&gt;</code>.</p>
+<p>Newest market timestamp wins:</p>
+<pre><code class="language-csharp">quotes.AddOrUpdate(
+    tick.Symbol,
+    tick,
+    (_, existingTick) =&gt;
+        tick.Timestamp &gt; existingTick.Timestamp
+            ? tick
+            : existingTick);
+</code></pre>
+<p>PricingService does not remove quotes after reading them. A current quote remains available until a newer quote replaces it.</p>
+<h3>TradeCaptureService</h3>
+<p>Owns executable trade capture.</p>
+<p>Flow:</p>
+<pre><code class="language-text">OrderAccepted / ExecuteLimitOrder
+→ ReferenceDataService
+→ PricingService when required
+→ execution price
+→ NotionalCalculatorResolver
+→ asset-specific notional calculator
+→ persist Trade
+→ publish TradeCaptured
+</code></pre>
+<p>Market orders: Buy executes at Ask, Sell executes at Bid.</p>
+<p>Triggered Limit orders use the supplied execution price and must not be re-priced in TradeCaptureService.</p>
+<p>Current notional rules:</p>
+<pre><code class="language-text">FX     = Quantity × Price
+Equity = Quantity × Price
+Bond   = Quantity × Price / 100
+</code></pre>
+<p>For bonds, <code>Quantity</code> represents nominal amount and price is quoted per 100 nominal.</p>
+<p>Notional currency:</p>
+<pre><code class="language-text">FX          → QuoteCurrency
+Equity      → TradingCurrency
+FixedIncome → DenominationCurrency
+</code></pre>
+<h3>PositionService</h3>
+<p>Owns current position state, movement audit, realised P&amp;L, unrealised P&amp;L, mark-to-market and trade-accounting concurrency protection.</p>
+<p>Position identity:</p>
+<pre><code class="language-text">ClientId + InstrumentId
+</code></pre>
+<p>Important fields:</p>
+<pre><code class="language-text">ClientId
+InstrumentId
+AssetClass
+Symbol
+NetQuantity
+AveragePrice
+PnlCurrency
+RealisedPnl
+UnrealisedPnl
+AccountingVersion
+CorrelationId
+CreatedAt
+UpdatedAt
+</code></pre>
+<p><code>Position.CorrelationId</code> represents the latest trade correlation ID. Historical trade correlation IDs remain preserved in <code>PositionMovement</code>.</p>
+<hr />
+<h2>3. Messaging and transport choices</h2>
+<h3>NServiceBus + RabbitMQ</h3>
+<p>Used for durable business workflows such as SubmitOrder, OrderAccepted, OrderRejected, TradeCaptured, PositionUpdated and saga commands/timeouts.</p>
+<h3>ZeroMQ</h3>
+<p>Used for transient high-frequency market data.</p>
+<pre><code class="language-text">TradeCaptured
+→ durable business event
+→ must not be lost
+
+PriceTick
+→ transient market-data event
+→ freshness is more important than preserving every tick
+</code></pre>
+<hr />
+<h2>4. Phase 3A — Live market data</h2>
+<p>Status: <strong>Complete</strong></p>
+<p>Architecture:</p>
+<pre><code class="language-text">MarketDataSimulator --ZeroMQ PUB--&gt; PricingService
+                                         |
+                                   MarketQuoteCache
+                                         |
+                                 gRPC GetPrice
+</code></pre>
+<p>Simulator uses shared <code>TradingApp.MarketData.Contracts.PriceTick</code>.</p>
+<p>Current simulated instruments:</p>
+<pre><code class="language-text">EURUSD: initial bid 1.0849, spread 0.0002, step 0.0001, delay 100–400 ms
+AAPL: initial bid 210.00, spread 0.50, step 0.25, delay 250–800 ms
+GB00TEST1234: initial bid 98.40, spread 0.10, step 0.05, delay 500–1500 ms
+</code></pre>
+<p>Simulator bounded channel:</p>
+<pre><code class="language-text">capacity = 100
+FullMode = DropOldest
+SingleReader = true
+SingleWriter = false
+</code></pre>
+<p><code>SingleWriter = false</code> because several instrument simulators write into the same channel.</p>
+<hr />
+<h2>5. Phase 3B — Working limit orders</h2>
+<p>Status: <strong>Complete</strong></p>
+<p>OrderService owns the working-order lifecycle through an NServiceBus Saga.</p>
+<p>Important rule:</p>
+<pre><code class="language-text">Order lifecycle state belongs to OrderService.
+Execution/trade persistence belongs to TradeCaptureService.
+</code></pre>
+<hr />
+<h2>6. Position accounting</h2>
+<p><code>ApplyTrade</code> handles open, add, reduce, close and flip.</p>
+<p>Realised P&amp;L interface:</p>
+<pre><code class="language-csharp">public interface IRealisedPnlCalculator
+{
+    AssetClass AssetClass { get; }
+
+    decimal Calculate(
+        decimal closedQuantity,
+        decimal priceDifference);
+}
+</code></pre>
+<p>Rules:</p>
+<pre><code class="language-text">FX / Equity = closedQuantity × priceDifference
+Bond        = closedQuantity × priceDifference / 100
+</code></pre>
+<p><code>Position.RealisedPnl</code> is cumulative. <code>PositionCalculationResult.RealisedPnl</code> is the current trade effect. <code>PositionMovement.RealisedPnlChange</code> records the per-trade change.</p>
+<hr />
+<h2>7. Phase 3C — Unrealised P&amp;L / Mark-to-Market</h2>
+<p>Status: <strong>Event-driven implementation working end-to-end</strong></p>
+<p>Realised P&amp;L is locked in by closing trades. Unrealised P&amp;L is the P&amp;L on an open position using the current close-out price.</p>
+<p>Mark-price rule:</p>
+<pre><code class="language-text">Long  → closes by Sell → Bid
+Short → closes by Buy  → Ask
+</code></pre>
+<p>Formula:</p>
+<pre><code class="language-text">Long  = NetQuantity × (MarkPrice - AveragePrice)
+Short = abs(NetQuantity) × (AveragePrice - MarkPrice)
+Bond  = same economic calculation / 100
+</code></pre>
+<p>Current classes:</p>
+<pre><code class="language-text">IUnrealisedPnlCalculator
+FxUnrealisedPnlCalculator
+EquityUnrealisedPnlCalculator
+BondUnrealisedPnlCalculator
+UnrealisedPnlCalculatorResolver
+MarkPriceSelector
+PositionMarkToMarketCalculator
+</code></pre>
+<hr />
+<h2>8. Phase 3C.1 — Polling MTM</h2>
+<p>Status: <strong>Implemented and runtime-tested, then superseded by 3C.2</strong></p>
+<p>Original architecture:</p>
+<pre><code class="language-text">UnrealisedPnlPositionsBackgroundWorker
+→ every ~1 second
+→ UnrealisedPnlPositionsUpdater
+→ load all open positions
+→ group by Symbol
+→ one PricingService gRPC request per unique symbol
+→ calculate MTM
+→ SaveChanges
+</code></pre>
+<p>This proved the core business calculation and eventual-consistency behaviour.</p>
+<p>Now that 3C.2 is proven, remove the old polling registration and delete <code>UnrealisedPnlPositionsBackgroundWorker</code> and <code>UnrealisedPnlPositionsUpdater</code> if unused.</p>
+<p>Do not remove the core MTM calculators or PricingService gRPC client.</p>
+<hr />
+<h2>9. Phase 3C.2 — Event-driven MTM</h2>
+<p>Status: <strong>Working end-to-end</strong></p>
+<p>Final architecture:</p>
+<pre><code class="language-text">MarketDataSimulator
+        |
+        | ZeroMQ PriceTick
+        v
+PositionService ZeroMqPriceTickSubscriber
+        |
+        v
+PriceTickBuffer
+        |
+        v
+UnrealisedPnlPriceTickBackgroundWorker
+        |
+        v
+UnrealisedPnlPriceTickProcessor
+        |
+        v
+PositionRepository
+        |
+        v
+Positions.UnrealisedPnl
+</code></pre>
+<p>The old polling worker was disabled during runtime validation and <code>Positions.UnrealisedPnl</code> continued moving with live prices. This proved that event-driven <code>PriceTick</code> processing was genuinely driving MTM.</p>
+<hr />
+<h2>10. PriceTickBuffer</h2>
+<p>PositionService does not need to process every historical market-data tick.</p>
+<p>A burst such as 50 EURUSD ticks should not create 50 SQL valuation updates when only the newest price matters.</p>
+<p><code>PriceTickBuffer</code> uses:</p>
+<pre><code class="language-text">ConcurrentDictionary&lt;string, PriceTick&gt;
++ bounded Channel&lt;bool&gt; used only as a wake-up signal
+</code></pre>
+<p>The dictionary stores the newest unprocessed tick per symbol. The channel says only: <strong>new work is available</strong>.</p>
+<p>With channel capacity 1, many rapid updates can collapse into one pending wake-up.</p>
+<p>Newest timestamp wins:</p>
+<pre><code class="language-csharp">latestTicks.AddOrUpdate(
+    tick.Symbol,
+    tick,
+    (_, existingTick) =&gt;
+        tick.Timestamp &gt; existingTick.Timestamp
+            ? tick
+            : existingTick);
+</code></pre>
+<p><code>TakeLatest()</code> removes currently available newest ticks and returns them for processing.</p>
+<p><code>ConcurrentDictionary</code> enumeration does not freeze other writers. A newer tick that arrives during processing can be inserted concurrently and remain for the next pass.</p>
+<p>Intentional behaviour:</p>
+<pre><code class="language-text">process what is available now
++
+keep anything newer for the next pass
+</code></pre>
+<hr />
+<h2>11. Event-driven MTM background processing</h2>
+<p><code>UnrealisedPnlPriceTickBackgroundWorker</code>:</p>
+<ol>
+<li>waits for the PriceTickBuffer wake-up signal</li>
+<li>calls <code>TakeLatest()</code></li>
+<li>processes latest ticks</li>
+<li>creates a separate DI scope / DbContext per tick</li>
+<li>uses <code>Task.WhenAll</code> so different symbols can process concurrently</li>
+<li>returns to waiting for the next signal</li>
+</ol>
+<p><code>Task.WhenAll</code> is preferred over <code>Parallel.ForEach</code> because the expensive work is async database I/O (<code>GetOpenPositionsBySymbolAsync</code>, <code>SaveChangesAsync</code>).</p>
+<p><code>Task.Run</code> is still appropriate for the synchronous NetMQ receive loop because that loop blocks synchronously.</p>
+<hr />
+<h2>12. ZeroMQ subscriber in PositionService</h2>
+<p>Responsibility:</p>
+<pre><code class="language-text">ZeroMQ
+→ receive topic + payload
+→ deserialize PriceTick
+→ validate topic matches PriceTick.Symbol
+→ PriceTickBuffer.Publish(tick)
+</code></pre>
+<p>It performs no EF work, SQL query, P&amp;L calculation or position update. This prevents database latency from blocking market-data receipt.</p>
+<hr />
+<h2>13. Optimistic concurrency — AccountingVersion</h2>
+<p>A SQL Server <code>rowversion</code> was considered and rejected because it changes on every row update, including frequent MTM updates, which could cause unnecessary conflicts with business-critical trade accounting.</p>
+<p>Position instead has:</p>
+<pre><code class="language-csharp">public long AccountingVersion { get; set; }
+</code></pre>
+<p>EF configuration:</p>
+<pre><code class="language-csharp">builder.Property(x =&gt; x.AccountingVersion)
+    .IsConcurrencyToken();
+</code></pre>
+<p><code>.IsConcurrencyToken()</code> does not auto-increment a normal <code>long</code>; the application increments it for trade-accounting changes:</p>
+<pre><code class="language-csharp">position.AccountingVersion++;
+</code></pre>
+<p>MTM does <strong>not</strong> increment <code>AccountingVersion</code>.</p>
+<p>Meaning:</p>
+<blockquote>
+<p>version of the trade-accounting state, not version of every database-row change.</p>
+</blockquote>
+<hr />
+<h2>14. Trade-vs-trade concurrency</h2>
+<p>Example:</p>
+<pre><code class="language-text">Position = 350k
+AccountingVersion = 5
+
+Trade A +50k
+Trade B +50k
+</code></pre>
+<p>Both may read version 5. Trade A saves 400k/version 6. Trade B's stale update uses <code>WHERE AccountingVersion = 5</code>, affects zero rows and causes <code>DbUpdateConcurrencyException</code>.</p>
+<p>That exception must escape <code>TradeCapturedHandler</code> so NServiceBus recoverability retries the message. The retry re-reads the latest state and correctly applies the second trade.</p>
+<hr />
+<h2>15. MTM-vs-trade concurrency</h2>
+<p>If MTM reads accounting version 5 and a trade changes it to 6 before MTM saves, the MTM save is stale and EF throws <code>DbUpdateConcurrencyException</code>.</p>
+<p>Policy:</p>
+<pre><code class="language-text">stale MTM
+→ Debug log
+→ discard
+→ next PriceTick recalculates using current position
+</code></pre>
+<p>Trade concurrency exceptions propagate to NServiceBus; stale MTM concurrency exceptions are benign and can be ignored at Debug level.</p>
+<hr />
+<h2>16. ProcessedTrades and idempotency</h2>
+<p>Current Unit of Work:</p>
+<pre><code class="language-csharp">public interface IUnitOfWork
+{
+    IPositionRepository Positions { get; }
+    IProcessedTradeRepository ProcessedTrades { get; }
+    IPositionMovementRepository PositionMovements { get; }
+
+    Task&lt;int&gt; SaveChangesAsync(
+        CancellationToken cancellationToken = default);
+}
+</code></pre>
+<p>Position, PositionMovement and ProcessedTrade are written through the same Unit of Work / DbContext.</p>
+<p>If a trade update fails because of <code>DbUpdateConcurrencyException</code>, the ProcessedTrade marker does not commit independently, so an NServiceBus retry can safely process the trade again.</p>
+<p>Existing duplicate-key handling remains intentionally narrow:</p>
+<pre><code class="language-csharp">catch (DbUpdateException ex)
+    when (IsDuplicateKeyException(ex))
+</code></pre>
+<p>A concurrency exception is not swallowed by that filter.</p>
+<hr />
+<h2>17. Position repository addition for event-driven MTM</h2>
+<pre><code class="language-csharp">Task&lt;IReadOnlyList&lt;Position&gt;&gt;
+    GetOpenPositionsBySymbolAsync(
+        string symbol,
+        CancellationToken cancellationToken = default);
+</code></pre>
+<p>Query semantics:</p>
+<pre><code class="language-text">Symbol == requested symbol
+AND NetQuantity != 0
+</code></pre>
+<p>This allows a market-data tick to update only positions affected by that instrument instead of loading every open position in the platform.</p>
+<hr />
+<h2>18. Correlation IDs</h2>
+<p>Example request:</p>
+<pre><code class="language-text">Header:
+X-Correlation-Id: mtm-event-test-001
+</code></pre>
+<p>The correlation ID is propagated through business messages.</p>
+<p>Background MTM updates must not pretend to originate from an old trade correlation ID. <code>Position.CorrelationId</code> remains the correlation of the latest business trade update.</p>
+<p>A future enhancement could introduce a separate market-data refresh-cycle or tick trace ID if deeper MTM observability is required.</p>
+<hr />
+<h2>19. Logging rules</h2>
+<pre><code class="language-text">service lifecycle / meaningful business events → Information
+unexpected failures                           → Error
+high-frequency market/MTM diagnostics         → Debug or Trace
+</code></pre>
+<p>Per-tick successful MTM logging should remain at Trace. Expected stale-MTM concurrency conflicts should be Debug, not Error.</p>
+<hr />
+<h2>20. RabbitMQ operational model</h2>
+<pre><code class="language-text">Publisher
+→ Exchange
+→ Binding
+→ Queue
+→ Consumer
+</code></pre>
+<p>Queue metrics:</p>
+<pre><code class="language-text">Ready   = waiting to be delivered
+Unacked = delivered but not yet acknowledged
+Total   = Ready + Unacked
+</code></pre>
+<p>Keep NServiceBus delayed-delivery infrastructure such as <code>nsb.v2.delay-delivery</code>. Keep the audit queue while NServiceBus auditing is configured.</p>
+<hr />
+<h2>21. Current market-data architecture</h2>
+<pre><code class="language-text">                         ┌─────────────────────────────┐
+                         │     MarketDataSimulator     │
+                         └──────────────┬──────────────┘
+                                        │
+                                      ZeroMQ
+                                        │
+                    ┌───────────────────┴───────────────────┐
+                    │                                       │
+                    v                                       v
+          ┌─────────────────────┐              ┌─────────────────────┐
+          │   PricingService    │              │   PositionService   │
+          │                     │              │                     │
+          │ ZeroMQ Subscriber   │              │ ZeroMQ Subscriber   │
+          │        ↓            │              │        ↓            │
+          │ MarketQuoteCache    │              │ PriceTickBuffer     │
+          │        ↓            │              │        ↓            │
+          │ gRPC GetPrice       │              │ MTM Worker          │
+          └─────────────────────┘              │        ↓            │
+                                               │ Position MTM update │
+                                               └─────────────────────┘
+</code></pre>
+<p>PricingService retains the latest quote for synchronous price requests.</p>
+<p>PositionService coalesces the latest unprocessed market-data ticks and uses them to drive event-based valuation.</p>
+<hr />
+<h2>22. Current Phase 3C status</h2>
+<p>Completed:</p>
+<ul>
+<li>Unrealised P&amp;L calculators</li>
+<li>MarkPriceSelector</li>
+<li>PositionMarkToMarketCalculator</li>
+<li>polling MTM implementation and runtime validation</li>
+<li><code>AccountingVersion</code></li>
+<li>optimistic trade-accounting concurrency test</li>
+<li>event-driven Position repository query</li>
+<li><code>PriceTickBuffer</code></li>
+<li>ZeroMQ PositionService subscriber</li>
+<li>event-driven MTM processor</li>
+<li>event-driven MTM background worker</li>
+<li>parallel per-symbol processing with separate scopes</li>
+<li>timestamp-based latest-tick selection</li>
+<li>expected stale-MTM concurrency handling</li>
+<li>end-to-end event-driven runtime validation</li>
+<li>live <code>UnrealisedPnl</code> confirmed moving while polling worker was disabled</li>
+</ul>
+<p>Next cleanup:</p>
+<ul>
+<li>permanently remove old polling worker registration</li>
+<li>delete <code>UnrealisedPnlPositionsBackgroundWorker</code></li>
+<li>delete <code>UnrealisedPnlPositionsUpdater</code> if unused</li>
+<li>run full solution build/tests</li>
+<li>commit Phase 3C</li>
+</ul>
+<hr />
+<h2>23. Architecture principles learned</h2>
+<h3>Strategy pattern</h3>
+<p>Use when there is one business operation, the algorithm differs by category, callers should not own large <code>if/switch</code> blocks, and implementations can be selected by a resolver.</p>
+<p>Examples:</p>
+<pre><code class="language-text">IRealisedPnlCalculator
+IUnrealisedPnlCalculator
+NotionalCalculatorResolver
+</code></pre>
+<p>Clue: <strong>same business question, different calculation rule depending on asset class.</strong></p>
+<h3>Event vs snapshot</h3>
+<p><code>PriceTick</code> is an occurrence in a live stream. <code>PriceQuote</code> is a current snapshot returned on request.</p>
+<h3>Durable vs transient data</h3>
+<p>Business events need durability. Market ticks favour freshness.</p>
+<h3>Eventual consistency</h3>
+<p>Trade accounting can be persisted immediately and market valuation updated milliseconds later from the next tick.</p>
+<h3>Optimistic concurrency</h3>
+<p>Allow useful concurrency, detect stale writers, and decide retry/discard behaviour according to business importance.</p>
+<h3>Coalescing</h3>
+<p>When later values supersede earlier values, avoid processing obsolete work merely because it entered a FIFO queue first.</p>
+<hr />
+<h2>24. Future targets</h2>
+<p>Potential future phases include:</p>
+<ul>
+<li>FIX connectivity</li>
+<li>real external market-data feeds</li>
+<li>sockets / ZeroMQ deeper learning</li>
+<li>live prices UI</li>
+<li>real-time P&amp;L graphs</li>
+<li>reporting</li>
+<li>Greeks / options risk: Delta, Gamma, Vega, Theta</li>
+<li>rate-options risk</li>
+<li>stress testing</li>
+<li>portfolio-level risk</li>
+<li>authentication / permissions</li>
+<li>tenant isolation</li>
+<li>production monitoring</li>
+<li>deployment and support tooling</li>
+<li>commercial licensing review for dependencies</li>
+</ul>
+<hr />
+<h2>19. Phase 4 — Gateway read path and browser workstation</h2>
+<p>Status: <strong>In progress</strong></p>
+<p>The browser boundary is intentionally different from the internal service boundary:</p>
+<pre><code class="language-text">React / Angular
+      |
+      | REST/JSON
+      v
+TradingGateway.Api
+      |
+      | gRPC
+      v
+internal services
+</code></pre>
+<p>Current read path for open positions:</p>
+<pre><code class="language-text">GET /api/positions?clientId=...
+→ TradingGateway.Api
+→ Gateway query dispatcher
+→ GrpcPositionServiceClient
+→ PositionService gRPC
+→ PositionService query dispatcher
+→ GetOpenPositionsByClientIdQueryHandler
+→ repository
+</code></pre>
+<p>Position accounting decimals are transported through protobuf as invariant-culture strings rather than <code>double</code>, then mapped back to <code>decimal</code> at the Gateway boundary.</p>
+<p><code>TradingGateway.Api</code> also now exposes:</p>
+<pre><code class="language-text">GET /api/market/quotes
+</code></pre>
+<p>for an initial market-price snapshot.</p>
+<p>The market snapshot path is:</p>
+<pre><code class="language-text">React
+→ GET /api/market/quotes
+→ TradingGateway.Api
+→ GrpcPricingServiceClient
+→ PricingService.GetMarketQuotes
+→ MarketQuoteCache
+</code></pre>
+<p>Gateway HTTP errors are moving toward a standard <code>ProblemDetails</code> response contract using:</p>
+<pre><code class="language-csharp">builder.Services.AddProblemDetails();
+app.UseExceptionHandler();
+</code></pre>
+<p>Custom mappings such as gRPC <code>Unavailable</code> → HTTP <code>503 Service Unavailable</code> remain a future refinement.</p>
+<hr />
+<h2>20. Frontend workstation structure</h2>
+<p>React and Angular workstations are being built side-by-side against the same Gateway so framework choices can be compared without changing backend business behaviour.</p>
+<p>Current React structure is feature-oriented:</p>
+<pre><code class="language-text">src/
+├── store/
+│   ├── store.ts
+│   └── hooks.ts
+├── features/
+│   ├── positions/
+│   └── market/
+├── pages/
+├── shared/
+├── mocks/
+└── testing/
+</code></pre>
+<p>Current dashboard layout:</p>
+<pre><code class="language-text">┌──────────────┬─────────────────────────────┐
+│ Market Watch │ Selected instrument / chart │
+├────────────────────────────┬───────────────┤
+│ Open Positions             │ Order Ticket  │
+├────────────────────────────┴───────────────┤
+│ Recent Activity                            │
+└────────────────────────────────────────────┘
+</code></pre>
+<p><code>OpenPositions</code> uses the real Gateway API path and keeps loading/error states within the table shell.</p>
+<p>The React HTTP layer uses a shared Axios client with:</p>
+<pre><code class="language-text">environment-specific base URL
+correlation-ID request interceptor
+generic transport-error interceptor
+feature-specific inline error state
+</code></pre>
+<p>MSW is available both for tests and browser development so feature components do not need hard-coded fake arrays.</p>
+<hr />
+<h2>21. React testing and debugging</h2>
+<p>React tests can run in both:</p>
+<pre><code class="language-text">Vitest + jsdom
+Vitest browser mode + Playwright Chromium
+</code></pre>
+<p>The same component specs can therefore remain fast in normal runs while still being debuggable in a real browser.</p>
+<p>MSW has separate Node and browser setup because browser tests must not import <code>msw/node</code>.</p>
+<p>React DevTools is used for:</p>
+<pre><code class="language-text">component tree
+props
+hooks/state
+render behaviour
+Profiler
+</code></pre>
+<p>Redux DevTools is used for:</p>
+<pre><code class="language-text">dispatched actions
+action payload
+state before/after
+time-travel inspection
+</code></pre>
+<hr />
+<h2>22. Redux workstation state</h2>
+<p>Redux Toolkit has been introduced for state that is genuinely shared across workstation features.</p>
+<p>Current store responsibility is deliberately small:</p>
+<pre><code class="language-text">market.selectedSymbol
+</code></pre>
+<p>Example state:</p>
+<pre><code class="language-text">market.selectedSymbol = &quot;EURUSD&quot;
+</code></pre>
+<p>Market Watch dispatches <code>selectSymbol(symbol)</code>. Other components read the selected value through a typed selector/hook.</p>
+<p>Important rule:</p>
+<blockquote>
+<p>Do not move all server data into Redux merely because Redux exists.</p>
+</blockquote>
+<p>Local request/loading/error state can remain in the owning feature until cross-feature requirements justify moving it.</p>
+<hr />
+<h2>23. Error Boundary</h2>
+<p>A React Error Boundary now protects the application component tree from unexpected rendering/component failures.</p>
+<p>This is intentionally separate from API error handling:</p>
+<pre><code class="language-text">HTTP/gRPC/API failure
+→ feature error handling / ProblemDetails / notification
+
+unexpected React render failure
+→ ErrorBoundary fallback UI
+</code></pre>
+<p>The boundary currently logs to the browser console. A future hosted environment can forward these errors to a frontend monitoring/observability service.</p>
+<hr />
+<h2>24. Phase 4A — Live Market Watch through gRPC streaming and SignalR</h2>
+<p>Status: <strong>Working end-to-end</strong></p>
+<p>The browser now receives live market prices without polling.</p>
+<p>Architecture:</p>
+<pre><code class="language-text">MarketDataSimulator
+      |
+      | ZeroMQ PriceTick
+      v
+PricingService
+      |
+      | MarketQuoteCache       → snapshot
+      |
+      | MarketQuoteStream
+      v
+PricingGrpcService.StreamMarketQuotes
+      |
+      | server-streaming gRPC
+      v
+TradingGateway.Api
+MarketDataStreamingWorker
+      |
+      | IHubContext&lt;MarketDataHub&gt;
+      v
+SignalR
+      |
+      | normally WebSocket + SignalR Hub Protocol
+      v
+React MarketWatch
+</code></pre>
+<p>Two complementary price paths are retained:</p>
+<pre><code class="language-text">GET /api/market/quotes
+→ initial snapshot
+
+SignalR MarketQuoteUpdated
+→ subsequent live changes
+</code></pre>
+<p>This prevents the live transport from becoming the only way a newly opened workstation can obtain initial state.</p>
+<h3>PricingService MarketQuoteStream</h3>
+<p><code>MarketQuoteStream</code> uses <code>Channel&lt;PriceTick&gt;</code> as an asynchronous producer/consumer stream.</p>
+<pre><code class="language-text">PriceTickSubscriberWorker
+→ MarketQuoteCache.Update(tick)
+→ MarketQuoteStream.Publish(tick)
+</code></pre>
+<p><code>MarketQuoteCache</code> answers:</p>
+<blockquote>
+<p>What is the latest known quote?</p>
+</blockquote>
+<p><code>MarketQuoteStream</code> answers:</p>
+<blockquote>
+<p>What quote changes are arriving now?</p>
+</blockquote>
+<p>The server-streaming gRPC method consumes the internal async stream with <code>await foreach</code> and writes individual <code>MarketQuote</code> protobuf messages to the open response stream.</p>
+<h3>Gateway streaming client</h3>
+<p><code>GrpcPricingServiceClient.StreamMarketQuotesAsync</code> exposes the generated gRPC response stream as:</p>
+<pre><code class="language-csharp">IAsyncEnumerable&lt;MarketQuoteResponse&gt;
+</code></pre>
+<p>The generated gRPC call object is disposed with <code>using var call</code>.</p>
+<p>The background worker creates a correlation ID for each long-lived streaming session and propagates it through gRPC metadata. Background work does not reuse an old browser/trade correlation ID.</p>
+<h3>Hosted-service lifetime</h3>
+<p><code>AddHostedService&lt;MarketDataStreamingWorker&gt;()</code> creates a singleton hosted service.</p>
+<p><code>IPricingServiceClient</code> is scoped, so it cannot be injected directly into the hosted-service constructor. The worker uses <code>IServiceScopeFactory</code> to create an explicit scope and resolve <code>IPricingServiceClient</code> from that scope.</p>
+<p>Current worker has not yet been given a full reconnect/backoff loop. If PricingService is restarted while Gateway remains up, the gRPC stream can end and prices can stop flowing even though the SignalR browser connection remains alive. This is an intentional next resilience exercise.</p>
+<h3>SignalR Hub</h3>
+<p><code>MarketDataHub</code> logs connect/disconnect events using SignalR <code>ConnectionId</code>.</p>
+<p>SignalR provides:</p>
+<pre><code class="language-text">Context.ConnectionId
+Context.UserIdentifier   (useful later with authentication)
+Context.Abort()          (current connection)
+</code></pre>
+<p>A user may have multiple SignalR connections, for example several tabs or devices, so user identity and connection identity must not be treated as the same thing.</p>
+<h3>React SignalR lifecycle</h3>
+<p>The React market feature uses the official <code>@microsoft/signalr</code> client.</p>
+<p>Lifecycle:</p>
+<pre><code class="language-text">component effect
+→ connection.on(&quot;MarketQuoteUpdated&quot;, handler)
+→ connection.start()
+
+cleanup
+→ connection.off(...)
+→ connection.stop()
+</code></pre>
+<p><code>withAutomaticReconnect()</code> handles browser-side SignalR reconnect attempts.</p>
+<p>React development <code>StrictMode</code> can deliberately start/clean/restart effects once, which can produce an initial SignalR negotiation-aborted message during development. Production does not perform that development-only effect check.</p>
+<hr />
+<h2>25. Live price movement display</h2>
+<p>Market Watch currently displays:</p>
+<pre><code class="language-text">Symbol | Bid | Ask | Spread
+</code></pre>
+<p>Price updates are merged by symbol. Bid/Ask cells show direction based on the newest quote compared with the immediately previous quote:</p>
+<pre><code class="language-text">new bid &gt; old bid → up
+new bid &lt; old bid → down
+same bid          → unchanged
+</code></pre>
+<p>Direction is kept as:</p>
+<pre><code class="language-ts">type MarketPriceDirection =
+  | &quot;up&quot;
+  | &quot;down&quot;
+  | &quot;unchanged&quot;;
+</code></pre>
+<p>A timer-based one-second flash was tried and rejected because simulated prices can update much faster than one second. A delayed colour would describe an older price event rather than the newest tick. The current colour therefore follows the latest update.</p>
+<p>The simulator currently uses fixed spreads per instrument, so spread normally remains constant while bid/ask move together. Dynamic spreads are a future market-simulation enhancement.</p>
+<hr />
+<h2>26. Live market-data test coverage</h2>
+<p>The live-pricing slice now has meaningful coverage across the backend and React client.</p>
+<p>Backend coverage includes:</p>
+<pre><code class="language-text">Pricing gRPC server stream
+→ published PriceTick is written as MarketQuote
+
+Gateway gRPC client
+→ protobuf MarketQuote maps to MarketQuoteResponse
+→ correlation metadata is propagated
+
+MarketDataStreamingWorker
+→ streamed quote is broadcast through SignalR
+→ cancellation of the long-running test stream is observed
+</code></pre>
+<p><code>TaskCompletionSource</code> is used in streaming tests as an explicit synchronization signal so tests wait for the event they care about rather than sleeping for an arbitrary amount of time.</p>
+<p>Where appropriate, it is created with:</p>
+<pre><code class="language-csharp">TaskCreationOptions.RunContinuationsAsynchronously
+</code></pre>
+<p>so completing the test signal does not force an awaiting continuation to execute inline inside a callback. This keeps the test harness deterministic and avoids introducing callback re-entrancy / deadlock-style behaviour into the test itself.</p>
+<p>React Market Watch coverage includes:</p>
+<pre><code class="language-text">initial market snapshot through MSW
+SignalR quote update changes displayed price
+up / down / unchanged price direction
+Redux instrument selection
+SignalR cleanup on component unmount
+SignalR connection stop on component unmount
+</code></pre>
+<p>A cleanup test exposed a real bug:</p>
+<pre><code class="language-text">registered event:   MarketQuoteUpdated
+cleanup event:      MarketQuoteUpdate
+</code></pre>
+<p>The UI appeared to work, but the wrong cleanup event name meant the exact registered handler was not being removed. The test was strengthened to compare the event name and the handler reference used by <code>on(...)</code> and <code>off(...)</code>.</p>
+<hr />
+<h2>27. Current next milestones</h2>
+<p>The React workstation remains the reference implementation until the trading workflow and layout stabilise. Angular parity is deliberately moved later so the same design is not rebuilt while it is still changing.</p>
+<p>Near-term sequence:</p>
+<pre><code class="language-text">1. Continue React workstation:
+   - selected-instrument live candlestick chart is working end-to-end
+   - build the functional Order Ticket next to the chart
+   - keep Market Watch as instrument chooser
+   - Open Positions and Recent Activity below
+
+2. Introduce FIX Gateway:
+   - FIX session logon/logout/heartbeat
+   - inbound New Order Single (35=D)
+   - map to internal SubmitOrder
+   - outbound ExecutionReport / Reject (35=8 where applicable)
+   - preserve ClOrdID ↔ internal OrderId
+   - preserve execution/trade identifiers
+   - introduce FIX MsgSeqNum
+   - then add sequence-gap / resend handling
+
+3. Increase market-data realism:
+   - add ProviderId
+   - add market-data SequenceNumber
+   - keep source timestamp
+   - record receive timestamp
+   - calculate delivery latency
+   - detect missing / out-of-order ticks
+   - run the simulator twice as LP-A and LP-B
+   - retain latest quote per provider
+   - aggregate best bid / best ask
+
+4. Build distributed multi-laptop environment:
+   - Git for code synchronisation
+   - SSH / remote terminal for service startup and logs
+   - service endpoints configured by machine
+   - deliberately introduce service/network failures
+   - observe gRPC, SignalR, RabbitMQ and SQL behaviour
+
+5. Introduce lightweight Kanban delivery:
+   - Backlog
+   - Ready
+   - In Progress
+   - Test
+   - Done
+   - keep a small WIP limit
+   - acceptance criteria and evidence for each slice
+
+6. Build Angular workstation to feature parity once React behaviour/layout is stable.
+</code></pre>
+<h3>FIX Gateway target architecture</h3>
+<pre><code class="language-text">FixClientSimulator
+       |
+       | TCP / FIX session
+       v
+FIX Gateway
+       |
+       | NewOrderSingle (35=D)
+       | ClOrdID
+       v
+internal SubmitOrder
+       |
+       v
+existing OrderService / Risk / TradeCapture flow
+       |
+       v
+ExecutionReport / Reject
+       |
+       | FIX
+       v
+FixClientSimulator
+</code></pre>
+<p>FIX sequence numbers are session-level ordering numbers and are separate from market-data sequence numbers.</p>
+<pre><code class="language-text">FIX MsgSeqNum
+= ordering and recovery within a FIX session
+
+Market-data SequenceNumber
+= ordering / gap detection within a price feed
+</code></pre>
+<h3>Two-liquidity-provider target architecture</h3>
+<p>The simulator executable should be reusable and launched twice with different configuration rather than creating two different simulator codebases.</p>
+<pre><code class="language-text">MarketDataSimulator
+ProviderId = LP-A  ─┐
+                    ├─&gt; PricingService
+MarketDataSimulator │      |
+ProviderId = LP-B  ─┘      ├─ latest quote per provider
+                           ├─ sequence / latency checks
+                           └─ best bid / best ask aggregation
+                                     |
+                                     v
+                               existing gRPC
+                                     |
+                                     v
+                                  Gateway
+                                     |
+                                     v
+                                  SignalR
+                                     |
+                                     v
+                                workstation
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-text">LP-A  Bid 1.0850  Ask 1.0853
+LP-B  Bid 1.0851  Ask 1.0854
+
+Best Bid = 1.0851 from LP-B
+Best Ask = 1.0853 from LP-A
+</code></pre>
+<p>The current three instruments remain sufficient for the first multi-LP and FIX exercises. External/free market-data integration can be introduced later without changing the internal <code>PriceTick</code> / quote-processing architecture.</p>
+<p>Longer-term:</p>
+<pre><code class="language-text">Gateway gRPC stream reconnect/backoff
+external market-data provider
+authentication / authorisation
+cloud deployment
+observability / tracing / metrics
+load and performance testing
+SignalR scale-out / multi-Gateway fan-out
+Angular parity
+</code></pre>
+<hr />
+<h2>28. Phase 4B — Live selected-instrument candlestick chart</h2>
+<p>Status: <strong>Working end-to-end and covered by component tests</strong></p>
+<p>The workstation now combines an initial historical candle snapshot with live candle updates.</p>
+<pre><code class="language-text">initial history:
+React PriceChart
+→ GET /api/market/candles/{symbol}
+→ TradingGateway.Api
+→ GrpcPricingServiceClient.GetMarketCandlesAsync
+→ PricingService.GetMarketCandles
+→ MarketCandleStore
+
+live updates:
+MarketDataSimulator
+→ ZeroMQ PriceTick
+→ PricingService CandleAggregator
+→ MarketCandleStream
+→ PricingGrpcService.StreamMarketCandles
+→ TradingGateway MarketDataStreamingWorker
+→ SignalR MarketCandleUpdated
+→ React PriceChart
+</code></pre>
+<p><code>CandleAggregator</code> builds 5-second OHLC candles from midpoint price:</p>
+<pre><code class="language-text">mid = (Bid + Ask) / 2
+</code></pre>
+<p>The candle shape is <code>Symbol, StartTime, Open, High, Low, Close</code>. The domain record keeps conventional OHLC ordering, and positional records should be constructed with named arguments.</p>
+<p><code>MarketCandleStore</code> keeps recent historical candles while <code>MarketCandleStream</code> carries live candle changes. PricingService therefore has the same snapshot-versus-stream distinction used for quotes.</p>
+<p><code>PricingGrpcService.StreamMarketCandles</code> consumes the internal async stream with <code>await foreach</code>. The Gateway client exposes it as <code>IAsyncEnumerable&lt;MarketCandleResponse&gt;</code>. Correlation ID remains gRPC metadata.</p>
+<p><code>MarketDataStreamingWorker</code> now runs quote and candle streams together and broadcasts:</p>
+<pre><code class="language-text">MarketQuoteUpdated
+MarketCandleUpdated
+</code></pre>
+<p>A later resilience exercise should cover one streaming task faulting while the other remains alive.</p>
+<hr />
+<h2>29. Shared React market-data connection</h2>
+<p>The trading page owns one shared SignalR connection through <code>MarketDataProvider</code>.</p>
+<pre><code class="language-text">TradingDashboardPage
+└── MarketDataProvider
+    ├── MarketWatch
+    ├── PriceChart
+    ├── Order Ticket
+    ├── Open Positions
+    └── Recent Activity
+</code></pre>
+<p>Ownership rule:</p>
+<pre><code class="language-text">MarketDataProvider
+→ create/start/stop HubConnection
+
+MarketWatch / PriceChart
+→ register/remove event handlers only
+</code></pre>
+<p>A real bug was found when the provider's connection-starting <code>useEffect</code> had no dependency array. <code>setConnection(...)</code> caused another render, which reran cleanup/start. The provider effect now runs once for its component lifetime.</p>
+<p>The context remains split into:</p>
+<pre><code class="language-text">MarketDataContext.ts
+MarketDataProvider.tsx
+useMarketDataHubConnection.ts
+</code></pre>
+<hr />
+<h2>30. PriceChart design and candle reconciliation</h2>
+<p><code>PriceChart</code> owns selected symbol, REST loading, SignalR subscription, candle state, error/loading state and REST/live reconciliation.</p>
+<p><code>CandlestickChart</code> owns the Lightweight Charts instance, candlestick series, model-to-chart mapping, visible logical range and external-library cleanup.</p>
+<p>Chart/library instances are refs because changing them should not cause React renders.</p>
+<p>The chart starts with approximately the latest 25 candles visible. Negative logical positions are valid; clamping to zero when only one or two candles existed made those candles appear excessively wide.</p>
+<p>Current EURUSD formatting uses:</p>
+<pre><code class="language-text">precision = 4
+minMove = 0.0001
+</code></pre>
+<p>Later this should come from ReferenceData instrument metadata.</p>
+<h3><code>mergeMarketCandle</code></h3>
+<p>Current candle identity:</p>
+<pre><code class="language-text">Symbol + StartTime
+</code></pre>
+<p>Rules:</p>
+<pre><code class="language-text">matching bucket → replace
+newer/new bucket → append
+result → chronological order
+</code></pre>
+<p>Timestamp comparison uses the parsed instant rather than raw ISO text because equivalent timestamps can have different fractional precision.</p>
+<p><code>mergeMarketCandle</code> is used in two places:</p>
+<ol>
+<li>Live SignalR updates call it directly against current state.</li>
+<li>When REST history completes, already-received live candles are reduced over the REST result so a late REST snapshot cannot overwrite fresher live state.</li>
+</ol>
+<hr />
+<h2>31. PriceChart test coverage</h2>
+<p><code>PriceChart.spec.tsx</code> uses the real component/state logic and real <code>marketApi</code> HTTP path, with MSW intercepting HTTP. <code>useMarketDataHubConnection</code> and the visual <code>CandlestickChart</code> child are mocked.</p>
+<p>Covered behaviour:</p>
+<pre><code class="language-text">historical candles load for selected symbol
+subscribes to MarketCandleUpdated
+new live candle appends
+same bucket replaces rather than duplicates
+live candle wins when REST completes later
+different-symbol live candle is ignored
+handler is removed on unmount
+</code></pre>
+<p>The SignalR <code>on(...)</code> method is mocked, but the callback passed into it is the real handler created by <code>PriceChart</code>. Tests retrieve that recorded callback and invoke it directly.</p>
+<hr />
+<h2>32. Vitest + MSW runtime selection</h2>
+<p>The same React spec can run in:</p>
+<pre><code class="language-text">unit project    → jsdom
+browser project → Playwright / Chromium
+</code></pre>
+<p>MSW runtimes differ:</p>
+<pre><code class="language-text">server.ts  → setupServer(...handlers) → msw/node
+browser.ts → setupWorker(...handlers) → msw/browser
+</code></pre>
+<p>Browser tests must not import <code>msw/node</code>, otherwise Vite tries to bundle Node modules such as <code>node:http</code>.</p>
+<p>Tests import a neutral alias:</p>
+<pre><code class="language-ts">import { mockServer } from &quot;@/mocks/runtime&quot;;
+</code></pre>
+<p>Vitest resolves it per project:</p>
+<pre><code class="language-text">unit    → runtime.server.ts → server
+browser → runtime.browser.ts → browserWorker
+</code></pre>
+<p>Temporary handlers must be reset after each test:</p>
+<pre><code class="language-text">server.resetHandlers()
+browserWorker.resetHandlers()
+</code></pre>
+<p>A missing browser reset caused the delayed one-candle REST handler from one test to leak into the next test.</p>
+<p>TypeScript understands <code>@/*</code> through <code>tsconfig.app.json</code> <code>paths</code>; <code>baseUrl</code> is not required.</p>
+<hr />
+<h2>33. Chart optimisation status</h2>
+<p>A proposed optimisation changed repeated full <code>series.setData(...)</code> calls to selective <code>series.update(...)</code>.</p>
+<p>The first attempt mixed:</p>
+<ul>
+<li>previous/new data comparison,</li>
+<li>setData versus update decision,</li>
+<li>initial visible-range timing.</li>
+</ul>
+<p>When a live candle arrived before REST history, the viewport could initialise against one candle and later historical data appeared squashed or oversized.</p>
+<p>Decision:</p>
+<blockquote>
+<p>Keep the stable implementation now and revisit incremental chart updates as a measured performance exercise.</p>
+</blockquote>
+<p>Future work should compare <code>setData</code> versus <code>update</code> using React/browser profiling and verify that live updates do not disturb user zoom/scroll.</p>
+<hr />
+<h2>34. Production and performance exercises</h2>
+<p>Production hardening is broader than shutting down services.</p>
+<p>Planned deliberate exercises include:</p>
+<h3>React / browser</h3>
+<ul>
+<li>effect render loops</li>
+<li>duplicate SignalR subscriptions</li>
+<li>stale closures</li>
+<li>unnecessary rerenders</li>
+<li>heavy derived calculations</li>
+<li><code>useMemo</code>, <code>useCallback</code>, <code>React.memo</code> only after profiling</li>
+<li>symbol switch during an in-flight request</li>
+<li>late REST response overwriting live state</li>
+<li>unbounded candle-array growth</li>
+<li>user scroll/zoom reset by live data</li>
+<li>slow browser consumer</li>
+</ul>
+<h3>.NET / concurrency</h3>
+<ul>
+<li>sync-over-async</li>
+<li>thread-pool starvation</li>
+<li>ignored cancellation</li>
+<li>shared mutable-state races</li>
+<li>lock/semaphore contention</li>
+<li>one stream faulting while another remains alive</li>
+</ul>
+<h3>EF Core / SQL</h3>
+<ul>
+<li>optimistic concurrency conflicts</li>
+<li>DbContext concurrent use</li>
+<li>N+1 queries</li>
+<li>tracking overhead</li>
+<li>SQL deadlocks</li>
+<li>idempotency races</li>
+</ul>
+<h3>Messaging / market data / FIX</h3>
+<ul>
+<li>duplicate, out-of-order and poison messages</li>
+<li>broker reconnect/backlog</li>
+<li>late/duplicate/bad/missing-sequence ticks</li>
+<li>FIX sequence gaps</li>
+<li>duplicate ClOrdID</li>
+<li>PossDup replay</li>
+<li>reconnect/resend recovery</li>
+</ul>
+<h3>Infrastructure</h3>
+<ul>
+<li>CPU pressure</li>
+<li>memory pressure</li>
+<li>cross-machine latency</li>
+<li>DNS/host faults</li>
+<li>clock skew</li>
+<li>container/service restart</li>
+</ul>
+<p>Performance rule:</p>
+<pre><code class="language-text">reproduce
+→ measure
+→ explain
+→ change one thing
+→ measure again
+</code></pre>
+<hr />
+<h2>35. Order Ticket and next delivery sequence</h2>
+<p>The current backend supports:</p>
+<pre><code class="language-text">Market
+Limit
+</code></pre>
+<p>Stop / Stop-Loss and Stop-Limit are not implemented yet.</p>
+<p>The first React Order Ticket should therefore use the real current backend contract:</p>
+<pre><code class="language-text">selected Symbol
+Buy / Sell
+Quantity
+Market / Limit
+LimitPrice when applicable
+Submit
+</code></pre>
+<p>Rules:</p>
+<pre><code class="language-text">Market Buy  → Ask
+Market Sell → Bid
+
+Limit Buy  → trigger when Ask &lt;= LimitPrice
+Limit Sell → trigger when Bid &gt;= LimitPrice
+</code></pre>
+<p>Planned later backend extension:</p>
+<pre><code class="language-text">Stop
+StopLimit
+StopPrice
+</code></pre>
+<p>Implement those in OrderService/business workflow first, then expose them in React and FIX.</p>
+<p>Current application sequence:</p>
+<pre><code class="language-text">1. Functional React Order Ticket
+2. End-to-end workstation order submission
+3. Stop / Stop-Limit backend feature
+4. FIX counterparty path
+5. Instrument-metadata enhancements where UI needs them
+</code></pre>
+<p>Infrastructure sequence:</p>
+<pre><code class="language-text">1. One Windows 11 laptop with WSL2
+2. Docker Desktop / Linux containers
+3. Containerise one service
+4. Compose local production-like stack
+5. Measure resource usage
+6. Add another laptop only when useful
+</code></pre>
+<p>Future global log enrichment should add <code>MachineName</code>, <code>ServiceName</code>, <code>Environment</code> and <code>CorrelationId</code> centrally.</p>
+</main></body></html>

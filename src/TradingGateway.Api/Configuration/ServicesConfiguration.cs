@@ -5,6 +5,8 @@ using TradingGateway.Api.Application.Commands.SubmitOrder.Validation;
 using TradingGateway.Api.Application.Queries;
 using TradingGateway.Api.Application.Queries.Positions;
 using TradingGateway.Api.Application.Queries.Pricing;
+using TradingGateway.Api.Application.Queries.Pricing.TradingGateway.Api.Application.Queries.Pricing;
+using TradingGateway.Api.BackgroundServices;
 using TradingGateway.Api.ClientModels;
 using TradingGateway.Api.Clients;
 
@@ -20,6 +22,8 @@ namespace TradingGateway.Api.Configuration
             services.AddScoped<ICommandHandler<SubmitOrderCommand, SubmitOrderResult>, SubmitOrderCommandHandler>();
             services.AddScoped<IQueryHandler<GetOpenPositionsByClientIdQuery, IReadOnlyList<PositionSummaryResponse>>, GetOpenPositionsByClientIdQueryHandler>();
             services.AddScoped<IQueryHandler<GetMarketQuotesQuery, IReadOnlyList<MarketQuoteResponse>>, GetMarketQuotesQueryHandler>();
+            services.AddScoped<IQueryHandler<GetMarketCandlesQuery, IReadOnlyList<MarketCandleResponse>>, GetMarketCandlesQueryHandler>();
+
             services.AddScoped<IQueryDispatcher, QueryDispatcher>();
             services.AddScoped<ICommandDispatcher, CommandDispatcher>();
             services.AddScoped<IPolymorphicValidator, SubmitOrderCommandValidator>();
@@ -52,6 +56,8 @@ namespace TradingGateway.Api.Configuration
             {
                 options.Address = new Uri(positionServiceUrl);
             });
+
+            services.AddHostedService<MarketDataStreamingWorker>();
 
             return services;
         }

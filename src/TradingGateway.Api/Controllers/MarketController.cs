@@ -30,5 +30,25 @@ namespace TradingGateway.Api.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("candles/{symbol}")]
+        public async Task<ActionResult<IReadOnlyList<MarketCandleResponse>>> GetCandles(
+            string symbol,
+            CancellationToken cancellationToken)
+        {
+            var correlationId =
+                HttpContext.Items[CorrelationConstants.HeaderName]?.ToString()
+                ?? HttpContext.TraceIdentifier;
+
+            var result = await this.queryDispatcher.SendAsync<
+                GetMarketCandlesQuery,
+                IReadOnlyList<MarketCandleResponse>>(
+                new GetMarketCandlesQuery(
+                    symbol,
+                    correlationId),
+                cancellationToken);
+
+            return Ok(result);
+        }
     }
 }

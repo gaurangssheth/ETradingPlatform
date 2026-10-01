@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using TradingGateway.Api.Middlewares;
 using TradingGateway.Api.Configuration;
+using TradingGateway.Api.Hubs;
 
 Console.Title = "ETrading - TradingGateway.Api";
 
@@ -57,6 +58,8 @@ app.UseSwaggerConfiguration();
 app.UseExceptionHandler();
 
 app.UseCors("TradingWorkstation");
+
+app.MapHub<MarketDataHub>("/hubs/market-data");
 
 app.MapControllers();
 app.Run();

@@ -1,3 +1,4 @@
+using PricingService.Configuration;
 using PricingService.Grpc.Configuration;
 using PricingService.Grpc.MarketData;
 using PricingService.Grpc.Services;
@@ -13,16 +14,7 @@ builder.UseSerilogConfiguration();
 // Add services to the container.
 builder.Services.AddGrpc();
 
-var marketDataEndpoint = builder.Configuration.GetValue<string>("MarketData:Endpoint") ??
-    throw new InvalidOperationException("Marketdata:Endpoint is not configured.");
-
-builder.Services.AddSingleton<MarketQuoteCache>();
-builder.Services.AddSingleton<PriceTickSubscriberWorker>(
-    serviceProvider => new PriceTickSubscriberWorker(
-        serviceProvider.GetRequiredService<MarketQuoteCache>(),
-        marketDataEndpoint));
-
-builder.Services.AddHostedService<PriceTickSubscriberHostedService>();
+builder.Services.ConfigureServices(builder.Configuration);
 
 var app = builder.Build();
 

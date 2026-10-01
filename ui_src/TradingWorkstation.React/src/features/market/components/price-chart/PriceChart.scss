@@ -1,0 +1,42 @@
+.price-chart {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: #fff;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 0 16px;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 500;
+  }
+
+  &__content {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 300px;
+    padding: 8px;
+  }
+
+  &__loading,
+  &__empty,
+  &__error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 320px;
+    font-size: 13px;
+    color: #64748b;
+  }
+
+  &__error {
+    color: #dc2626;
+  }
+}

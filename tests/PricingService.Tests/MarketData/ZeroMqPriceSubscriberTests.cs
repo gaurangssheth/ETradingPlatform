@@ -83,10 +83,8 @@ namespace PricingService.Tests.MarketData
                 }
             };
 
-            receive.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage(
-                "*topic 'EURUSD'*payload symbol 'AAPL'*");
+            receive.Should().Throw<InvalidOperationException>()
+                .WithMessage("*topic 'EURUSD'*payload symbol 'AAPL'*");
         }
 
         private static string BindPublisher(PublisherSocket publisher)

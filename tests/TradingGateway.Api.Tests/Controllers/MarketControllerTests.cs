@@ -79,5 +79,61 @@ namespace TradingGateway.Api.Tests.Controllers
                         It.IsAny<CancellationToken>()),
                 Times.Once);
         }
+
+        [Fact]
+        public async Task GetMarketCandles_ShouldDispatchQueryAndReturnOk()
+        {
+            var candles = new List<MarketCandleResponse>
+            {
+                new(
+                    Symbol: "EURUSD",
+                    StartTime: new DateTimeOffset(2026, 9, 26, 8, 30, 0, TimeSpan.Zero),
+                    Open: 1.0850m,
+                    High: 1.0860m,
+                    Low: 1.0840m,
+                    Close: 1.0855m)
+            };
+
+            var queryDispatcher = new Mock<IQueryDispatcher>();
+
+            queryDispatcher
+                .Setup(q => q.SendAsync<
+                    GetMarketCandlesQuery,
+                    IReadOnlyList<MarketCandleResponse>>(
+                    It.Is<GetMarketCandlesQuery>(query =>
+                        query.Symbol == "EURUSD" &&
+                        query.CorrelationId == "market-controller-test-002"),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(candles);
+
+            var controller = new MarketController(queryDispatcher.Object);
+
+            var httpContext = new DefaultHttpContext();
+
+            httpContext.Items[CorrelationConstants.HeaderName] =
+                "market-controller-test-002";
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = httpContext
+            };
+
+            var result = await controller.GetCandles(
+                "EURUSD",
+                CancellationToken.None);
+
+            var okResult = result.Result.Should()
+                .BeOfType<OkObjectResult>().Subject;
+
+            var response = okResult.Value.Should()
+                .BeAssignableTo<IReadOnlyList<MarketCandleResponse>>()
+                .Subject;
+
+            response.Should().ContainSingle();
+
+            response.Single().Symbol.Should().Be("EURUSD");
+            response.Single().Open.Should().Be(1.0850m);
+            response.Single().Close.Should().Be(1.0855m);
+        }
     }
 }
